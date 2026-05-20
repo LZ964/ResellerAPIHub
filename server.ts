@@ -19,23 +19,23 @@ const getStripe = () => {
   return stripe;
 };
 
-let __filename = '';
-let __dirname = '';
+let _filename = '';
+let _dirname = '';
 
 try {
   // If we are in ESM (like with tsx)
   if (typeof import.meta !== 'undefined' && import.meta.url) {
-    __filename = fileURLToPath(import.meta.url);
-    __dirname = path.dirname(__filename);
+    _filename = fileURLToPath(import.meta.url);
+    _dirname = path.dirname(_filename);
   } else {
     // If we are in CJS (like bundled)
-    __filename = typeof __filename !== 'undefined' ? __filename : '';
-    __dirname = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+    // Use the global __filename and __dirname if they exist
+    _filename = typeof __filename !== 'undefined' ? __filename : '';
+    _dirname = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
   }
 } catch (e) {
-  // Fallback
-  __filename = '';
-  __dirname = process.cwd();
+  _filename = '';
+  _dirname = process.cwd();
 }
 
 // Modular Imports
@@ -179,7 +179,9 @@ async function startServer() {
     status: 'ok', 
     environment: process.env.NODE_ENV, 
     timestamp: new Date().toISOString(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    cwd: process.cwd(),
+    dirname: _dirname
   }));
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -1199,31 +1201,37 @@ function resellerhub_RegisterDomain($params) {
     app.use(vite.middlewares);
   } else {
     // Robust path resolution for production in Docker/Dokploy
-    // server.cjs is in /dist, index.html is in /dist.
-    // Try multiple possible locations for dist
-    let distPath = path.resolve(__dirname);
+    // server.cjs is in dist/, index.html is in dist/.
+    // Try absolute path first, then CWD fallback.
+    let distPath = path.resolve(_dirname);
     if (!fs.existsSync(path.join(distPath, 'index.html'))) {
       distPath = path.resolve(process.cwd(), 'dist');
     }
-    if (!fs.existsSync(path.join(distPath, 'index.html'))) {
-       distPath = path.resolve(process.cwd());
-    }
-
+    
     console.log(`[Prod] Static asset root resolved to: ${distPath}`);
     
     app.use(express.static(distPath, { index: false }));
     
     app.get('*', (req: Request, res: Response) => {
+      // API 404s should stay JSON
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({ error: 'Endpoint not found' });
+      }
+
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         return res.sendFile(indexPath);
       }
-      res.status(404).send(`404: Application Build Incomplete. index.html missing at ${indexPath}`);
+      res.status(404).send(`404: Entry point (index.html) missing at ${indexPath}`);
     });
   }
 
-  // --- Error Handling Middleware (MUST BE LAST) ---
+  // --- Final Error Handling Middleware (MUST BE LAST) ---
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      return next(err);
+    }
+    
     console.error(`[Error] ${req.method} ${req.url}:`, err);
 
     if (err instanceof z.ZodError) {
@@ -1242,6 +1250,7 @@ function resellerhub_RegisterDomain($params) {
     console.log(`[Bootstrap] Binding to 0.0.0.0:${PORT}...`);
     console.log(`[Status] Server successfully running at http://0.0.0.0:${PORT}`);
     console.log(`[Status] NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`[Status] Dist Path: ${isProd ? path.resolve(_dirname) : 'N/A'}`);
   });
 }
 

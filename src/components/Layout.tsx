@@ -359,15 +359,15 @@ export default function Layout({ user }: LayoutProps) {
           <div className="flex items-center gap-6">
             
             <button 
-              className="px-4 py-2 bg-white text-gray-900 border border-gray-200 rounded-lg flex items-center gap-2.5 group hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-md active:scale-95 cursor-pointer"
+              className="px-4 py-2 bg-gray-900 text-emerald-400 border border-emerald-500/30 rounded-lg flex items-center gap-2.5 group hover:border-emerald-500/60 hover:bg-black transition-all shadow-lg active:scale-95 cursor-pointer"
               title="Console CLI api-control"
               onClick={() => setTerminalOpen(!terminalOpen)}
             >
-              <div className="relative p-1 bg-gray-900 rounded-[4px]">
-                <Terminal size={14} className="text-white group-hover:scale-110 transition-transform" />
+              <div className="relative">
+                <Terminal size={14} className="group-hover:scale-110 transition-transform" />
+                <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
               </div>
-              <span className="text-[10px] font-black uppercase tracking-tighter">Sovereign Shell</span>
-              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
+              <span className="text-[10px] font-black uppercase tracking-[0.1em] font-mono">CLI_EXEC.SH</span>
             </button>
 
             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-oracle-border text-gray-600 rounded text-[9px] font-black uppercase tracking-[0.2em]">
