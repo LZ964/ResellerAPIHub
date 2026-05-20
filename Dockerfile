@@ -14,7 +14,7 @@ COPY . .
 RUN npm run build
 
 # Étape 2 : Image de production
-FROM node:20-slim
+FROM node:20-slim AS production
 
 WORKDIR /app
 
