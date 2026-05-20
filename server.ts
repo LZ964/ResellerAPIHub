@@ -10,8 +10,24 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { Type } from '@google/genai';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let __filename = '';
+let __dirname = '';
+
+try {
+  // If we are in ESM (like with tsx)
+  if (typeof import.meta !== 'undefined' && import.meta.url) {
+    __filename = fileURLToPath(import.meta.url);
+    __dirname = path.dirname(__filename);
+  } else {
+    // If we are in CJS (like bundled)
+    __filename = typeof __filename !== 'undefined' ? __filename : '';
+    __dirname = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+  }
+} catch (e) {
+  // Fallback
+  __filename = '';
+  __dirname = process.cwd();
+}
 
 // Modular Imports
 import { getFirebase, getGemini } from './server/config';
