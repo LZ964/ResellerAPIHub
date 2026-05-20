@@ -1181,8 +1181,9 @@ function resellerhub_RegisterDomain($params) {
   const isProd = process.env.NODE_ENV === 'production' || process.env.VITE_PROD === 'true';
   // PORT is already defined at the top of startServer
 
-  // --- Health Check ---
-  app.get('/health', (req, res) => res.json({ status: 'ok', environment: isProd ? 'production' : 'development', cwd: process.cwd() }));
+  // --- Health Checks ---
+  app.get('/api/health', (req, res) => res.json({ status: 'ok', environment: process.env.NODE_ENV, timestamp: new Date().toISOString() }));
+  app.get('/health', (req, res) => res.json({ status: 'ok', environment: process.env.NODE_ENV }));
 
   if (!isProd) {
     console.log('[Dev] Starting Vite in middleware mode...');
@@ -1194,16 +1195,14 @@ function resellerhub_RegisterDomain($params) {
     app.use(vite.middlewares);
   } else {
     // Robust path resolution for production in Dokploy/Docker
-    // Dist folder is typically sibling to dist/server.cjs or in parent
-    const distPath = fs.existsSync(path.join(process.cwd(), 'dist')) 
-      ? path.join(process.cwd(), 'dist')
-      : path.join(__dirname, '..', 'dist');
-
+    // In production, server.cjs is in dist/, so we serve the current directory
+    const distPath = path.resolve(__dirname);
     console.log(`[Prod] Static asset root resolved to: ${distPath}`);
+    console.log(`[Prod] Checking index.html at: ${path.join(distPath, 'index.html')}`);
     
-    // Serve static files with caching
+    // Serve static files
     app.use(express.static(distPath, {
-      maxAge: '1d',
+      maxAge: '1h',
       index: false
     }));
     
@@ -1214,14 +1213,14 @@ function resellerhub_RegisterDomain($params) {
         return res.sendFile(indexPath);
       }
       
-      // Attempt sibling dist resolution
-      const fallbackPath = path.join(__dirname, 'index.html');
+      // Attempt fallback to process.cwd() / dist
+      const fallbackPath = path.resolve(process.cwd(), 'dist', 'index.html');
       if (fs.existsSync(fallbackPath)) {
         return res.sendFile(fallbackPath);
       }
 
-      console.error(`[CRITICAL] index.html not found. Paths tried: ${indexPath}, ${fallbackPath}`);
-      res.status(404).send(`Application build incomplete: index.html missing. Check deployment logs for 'npm run build' output.`);
+      console.error(`[CRITICAL] index.html not found. tried: ${indexPath}, ${fallbackPath}`);
+      res.status(404).send(`404: Application entry point missing. Please redeploy.`);
     });
   }
 
