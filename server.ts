@@ -174,6 +174,15 @@ async function startServer() {
 
   const PORT = 3000;
 
+  // --- Health Checks (Defined very early to ensure reachability) ---
+  app.get('/api/health', (req, res) => res.json({ 
+    status: 'ok', 
+    environment: process.env.NODE_ENV, 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  }));
+  app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
   // Security Headers
   console.log('[Middleware] Configuring helmet...');
   app.use(helmet({
@@ -1162,7 +1171,7 @@ function resellerhub_RegisterDomain($params) {
     res.send(zipBuffer);
   });
 
-  // --- Error Handling Middleware ---
+  // --- Error Handling Middleware (MUST BE LAST) ---
   app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     console.error(`[Error] ${req.method} ${req.url}:`, err);
 
@@ -1179,11 +1188,6 @@ function resellerhub_RegisterDomain($params) {
   });
 
   const isProd = process.env.NODE_ENV === 'production' || process.env.VITE_PROD === 'true';
-  // PORT is already defined at the top of startServer
-
-  // --- Health Checks ---
-  app.get('/api/health', (req, res) => res.json({ status: 'ok', environment: process.env.NODE_ENV, timestamp: new Date().toISOString() }));
-  app.get('/health', (req, res) => res.json({ status: 'ok', environment: process.env.NODE_ENV }));
 
   if (!isProd) {
     console.log('[Dev] Starting Vite in middleware mode...');
@@ -1194,38 +1198,48 @@ function resellerhub_RegisterDomain($params) {
     console.log('[Dev] Mounting Vite middleware.');
     app.use(vite.middlewares);
   } else {
-    // Robust path resolution for production in Dokploy/Docker
-    // In production, server.cjs is in dist/, so we serve the current directory
-    const distPath = path.resolve(__dirname);
+    // Robust path resolution for production in Docker/Dokploy
+    // server.cjs is in /dist, index.html is in /dist.
+    // Try multiple possible locations for dist
+    let distPath = path.resolve(__dirname);
+    if (!fs.existsSync(path.join(distPath, 'index.html'))) {
+      distPath = path.resolve(process.cwd(), 'dist');
+    }
+    if (!fs.existsSync(path.join(distPath, 'index.html'))) {
+       distPath = path.resolve(process.cwd());
+    }
+
     console.log(`[Prod] Static asset root resolved to: ${distPath}`);
-    console.log(`[Prod] Checking index.html at: ${path.join(distPath, 'index.html')}`);
     
-    // Serve static files
-    app.use(express.static(distPath, {
-      maxAge: '1h',
-      index: false
-    }));
+    app.use(express.static(distPath, { index: false }));
     
     app.get('*', (req: Request, res: Response) => {
       const indexPath = path.join(distPath, 'index.html');
-      
       if (fs.existsSync(indexPath)) {
         return res.sendFile(indexPath);
       }
-      
-      // Attempt fallback to process.cwd() / dist
-      const fallbackPath = path.resolve(process.cwd(), 'dist', 'index.html');
-      if (fs.existsSync(fallbackPath)) {
-        return res.sendFile(fallbackPath);
-      }
-
-      console.error(`[CRITICAL] index.html not found. tried: ${indexPath}, ${fallbackPath}`);
-      res.status(404).send(`404: Application entry point missing. Please redeploy.`);
+      res.status(404).send(`404: Application Build Incomplete. index.html missing at ${indexPath}`);
     });
   }
 
-  console.log(`[Bootstrap] Binding to 0.0.0.0:${PORT}...`);
+  // --- Error Handling Middleware (MUST BE LAST) ---
+  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    console.error(`[Error] ${req.method} ${req.url}:`, err);
+
+    if (err instanceof z.ZodError) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: err.issues.map(e => ({ path: e.path.join('.'), message: e.message }))
+      });
+    }
+
+    const status = err.status || 500;
+    const msg = err.message || 'Internal server anomaly';
+    res.status(status).json({ error: msg });
+  });
+
   app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Bootstrap] Binding to 0.0.0.0:${PORT}...`);
     console.log(`[Status] Server successfully running at http://0.0.0.0:${PORT}`);
     console.log(`[Status] NODE_ENV: ${process.env.NODE_ENV}`);
   });

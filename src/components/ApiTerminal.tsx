@@ -32,6 +32,7 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
   const [history, setHistory] = useState<string[]>(['Sovereign Cloud Console [Version 3.4.2]', 'Tapez "help" pour voir les commandes "api-control".']);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,6 +74,14 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
     }
     return <pre key={i} className="whitespace-pre-wrap leading-relaxed">{line}</pre>;
   };
+
+  useEffect(() => {
+    if (isOpen && !isMinimized) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 300); // Wait for transition
+    }
+  }, [isOpen, isMinimized]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -256,18 +265,34 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
               {/* Inline Input Line */}
               <form onSubmit={handleSubmit} className="flex items-center gap-2 pt-4 border-t border-white/5 pb-32">
                 <span className={`${currentTheme.prompt} shrink-0 select-none`}>reseller@hub[root]:~$</span>
-                <input 
-                  ref={inputRef}
-                  autoFocus
-                  type="text"
-                  className="flex-1 bg-transparent border-none outline-none text-emerald-400 p-0 m-0 focus:ring-0 font-mono caret-emerald-400 font-bold"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder=""
-                  autoComplete="off"
-                  autoCapitalize="off"
-                  spellCheck="false"
-                />
+                <div className="flex-1 relative flex items-center" onClick={handleTerminalClick}>
+                  <input 
+                    ref={inputRef}
+                    autoFocus
+                    type="text"
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    className="w-full bg-transparent border-none outline-none text-emerald-400 p-0 m-0 focus:ring-0 font-mono font-bold caret-transparent"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder=""
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    spellCheck="false"
+                  />
+                  {/* Custom Blinking Cursor */}
+                  {!isLoading && (
+                    <div 
+                      className="absolute bg-emerald-500 w-2.5 h-1 border-b-2 border-emerald-400 animate-[pulse_1s_infinite]" 
+                      style={{ 
+                        left: `${input.length * 0.65}em`, // Rough estimate for mono font
+                        marginLeft: '1px',
+                        bottom: '4px',
+                        display: isFocused ? 'block' : 'none'
+                      }} 
+                    />
+                  )}
+                </div>
               </form>
             </div>
           </>

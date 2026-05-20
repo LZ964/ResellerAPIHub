@@ -359,15 +359,15 @@ export default function Layout({ user }: LayoutProps) {
           <div className="flex items-center gap-6">
             
             <button 
-              className="p-2.5 bg-black text-emerald-400 border-2 border-[#313131] rounded-lg flex items-center justify-center group hover:border-emerald-500/80 hover:bg-emerald-500/10 transition-all shadow-[0_0_15px_rgba(0,0,0,0.5)] cursor-pointer relative"
+              className="px-4 py-2 bg-white text-gray-900 border border-gray-200 rounded-lg flex items-center gap-2.5 group hover:border-emerald-500 hover:text-emerald-600 transition-all shadow-md active:scale-95 cursor-pointer"
               title="Console CLI api-control"
               onClick={() => setTerminalOpen(!terminalOpen)}
             >
-              <Terminal size={18} className="group-hover:scale-110 transition-transform" />
-              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse border-2 border-black" />
-              <div className="absolute -bottom-1 -left-1 px-1 bg-black border border-emerald-900 rounded-[2px] opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-[6px] font-bold text-emerald-500 font-mono">CLI</span>
+              <div className="relative p-1 bg-gray-900 rounded-[4px]">
+                <Terminal size={14} className="text-white group-hover:scale-110 transition-transform" />
               </div>
+              <span className="text-[10px] font-black uppercase tracking-tighter">Sovereign Shell</span>
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
             </button>
 
             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-oracle-border text-gray-600 rounded text-[9px] font-black uppercase tracking-[0.2em]">
