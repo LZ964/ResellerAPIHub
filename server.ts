@@ -172,9 +172,14 @@ async function startServer() {
     next();
   };
 
-  const PORT = 3000;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
   // --- Health Checks (Defined very early to ensure reachability) ---
+  app.use((req, res, next) => {
+    // Ultra early logging to detect if request hits container
+    console.log(`[EARLY TRACE] ${req.method} ${req.url} (Host: ${req.headers.host})`);
+    next();
+  });
   app.get('/api/health', (req, res) => {
     const diagnostic = {
       status: 'ok',
