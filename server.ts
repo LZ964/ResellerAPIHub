@@ -1188,21 +1188,7 @@ function resellerhub_RegisterDomain($params) {
     res.send(zipBuffer);
   });
 
-  // --- Error Handling Middleware (MUST BE LAST) ---
-  app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-    console.error(`[Error] ${req.method} ${req.url}:`, err);
 
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({
-        error: 'Validation failed',
-        details: err.issues.map(e => ({ path: e.path.join('.'), message: e.message }))
-      });
-    }
-
-    const status = err.status || 500;
-    const msg = err.message || 'Internal server anomaly';
-    res.status(status).json({ error: msg });
-  });
 
   const isProd = process.env.NODE_ENV === 'production' || process.env.VITE_PROD === 'true';
 
