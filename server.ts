@@ -111,6 +111,33 @@ const depositSchema = z.object({
   method: z.enum(['credit_card', 'bank_transfer', 'crypto']).default('credit_card'),
 });
 
+const apiKeySchema = z.object({
+  name: z.string().min(1).max(50),
+  permissions: z.string().regex(/^[0-9,]+$/).default('1,2,3'),
+});
+
+const dnsRecordSchema = z.object({
+  type: z.enum(['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV']),
+  name: z.string().min(1).max(255),
+  value: z.string().min(1),
+  ttl: z.number().min(60).max(86400).default(3600),
+  priority: z.number().optional(),
+});
+
+const mailboxSchema = z.object({
+  localPart: z.string().min(1).max(64).regex(/^[a-zA-Z0-9.-]+$/),
+  password: z.string().min(8),
+  planId: z.string(),
+});
+
+const checkoutSessionSchema = z.object({
+  amount: z.number().min(5).max(10000),
+});
+
+const bulkDomainsSchema = z.object({
+  domains: z.array(z.string().min(3)).min(1),
+});
+
 // --- ZIP LIBRARY ---
 import AdmZip from 'adm-zip';
 
@@ -282,34 +309,38 @@ async function startServer() {
 
   app.post('/api/keys', authenticateUser, async (req: Request, res: Response) => {
     const uid = (req as any).user.uid;
-    const { name, permissions } = req.body; 
-    
-    if (db) {
-      const userDoc = await db.collection('users').doc(uid).get();
-      const userData = userDoc.data();
-      const balance = userData?.balance || 0;
-      const isApproved = userData?.apiApproved === true;
+    try {
+      const { name, permissions } = apiKeySchema.parse(req.body); 
+      
+      if (db) {
+        const userDoc = await db.collection('users').doc(uid).get();
+        const userData = userDoc.data();
+        const balance = userData?.balance || 0;
+        const isApproved = userData?.apiApproved === true;
 
-      if (balance < 50) {
-        return res.status(403).json({ error: 'Solde insuffisant. Un minimum de 50.00$ est requis pour activer l\'accès API.' });
-      }
-      if (!isApproved) {
-        return res.status(403).json({ error: 'Votre demande d\'accès API est en cours de révision par la gouvernance HUB.' });
-      }
+        if (balance < 50) {
+          return res.status(403).json({ error: 'Solde insuffisant. Un minimum de 50.00$ est requis pour activer l\'accès API.' });
+        }
+        if (!isApproved) {
+          return res.status(403).json({ error: 'Votre demande d\'accès API est en cours de révision par la gouvernance HUB.' });
+        }
 
-      const key = `reseller_${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`;
-      const newKey = {
-        uid,
-        name: name || 'New Key',
-        key,
-        permissions: permissions || '1,2,3',
-        createdAt: new Date()
-      };
-      await db.collection('api_keys').add(newKey);
-      await logActivity(req, 'CREATE_API_KEY', { name });
-      res.json({ success: true, key });
-    } else {
-      res.status(500).json({ error: 'Database unavailable' });
+        const key = `reseller_${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`;
+        const newKey = {
+          uid,
+          name: name || 'New Key',
+          key,
+          permissions: permissions || '1,2,3',
+          createdAt: new Date()
+        };
+        await db.collection('api_keys').add(newKey);
+        await logActivity(req, 'CREATE_API_KEY', { name });
+        res.json({ success: true, key });
+      } else {
+        res.status(500).json({ error: 'Database unavailable' });
+      }
+    } catch (error) {
+      res.status(400).json({ error: 'Invalid API key parameters' });
     }
   });
 
@@ -528,10 +559,7 @@ async function startServer() {
   app.post('/api/domains/bulk', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const uid = (req as any).user.uid;
-      const { domains } = req.body;
-      if (!Array.isArray(domains) || domains.length === 0) {
-        return res.status(400).json({ error: 'Une liste de domaines valide est requise' });
-      }
+      const { domains } = bulkDomainsSchema.parse(req.body);
       const data = await paymenter.registerBulkDomains(uid, domains);
       res.json(data);
     } catch (error) {
@@ -556,11 +584,8 @@ async function startServer() {
     try {
       const uid = (req as any).user.uid;
       const { domain } = req.params;
-      const { type, name, value, ttl, priority } = req.body;
-      if (!type || !name || !value || !ttl) {
-        return res.status(400).json({ error: 'Champs DNS requis manquants' });
-      }
-      const data = await paymenter.addDnsRecord(uid, domain, { type, name, value, ttl: Number(ttl), priority: priority ? Number(priority) : undefined });
+      const { type, name, value, ttl, priority } = dnsRecordSchema.parse(req.body);
+      const data = await paymenter.addDnsRecord(uid, domain, { type, name, value, ttl, priority });
       res.json(data);
     } catch (error) {
       next(error);
@@ -610,10 +635,7 @@ async function startServer() {
     try {
       const uid = (req as any).user.uid;
       const { domain } = req.params;
-      const { localPart, password, planId } = req.body;
-      if (!localPart || !password || !planId) {
-        return res.status(400).json({ error: 'Champs de configuration de messagerie requis manquants' });
-      }
+      const { localPart, password, planId } = mailboxSchema.parse(req.body);
       const data = await paymenter.createMailbox(uid, domain, localPart, password, planId);
       res.json(data);
     } catch (error) {
@@ -769,7 +791,7 @@ async function startServer() {
         return res.json({ url: '/profile#billing?success=true&demo=true' });
       }
 
-      const { amount } = req.body;
+      const { amount } = checkoutSessionSchema.parse(req.body);
       const session = await stripeClient.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [
@@ -1172,19 +1194,34 @@ function resellerhub_RegisterDomain($params) {
     app.use(vite.middlewares);
   } else {
     // Robust path resolution for production in Dokploy/Docker
-    // If running node dist/server.cjs, __dirname is /app/dist
-    // If running from /app, process.cwd() is /app
-    const distPath = path.resolve(process.cwd(), 'dist');
-    console.log(`[Prod] Static asset root: ${distPath}`);
+    // Dist folder is typically sibling to dist/server.cjs or in parent
+    const distPath = fs.existsSync(path.join(process.cwd(), 'dist')) 
+      ? path.join(process.cwd(), 'dist')
+      : path.join(__dirname, '..', 'dist');
+
+    console.log(`[Prod] Static asset root resolved to: ${distPath}`);
     
-    app.use(express.static(distPath));
+    // Serve static files with caching
+    app.use(express.static(distPath, {
+      maxAge: '1d',
+      index: false
+    }));
     
     app.get('*', (req: Request, res: Response) => {
       const indexPath = path.join(distPath, 'index.html');
+      
       if (fs.existsSync(indexPath)) {
         return res.sendFile(indexPath);
       }
-      res.status(404).send(`Application build missing index.html at ${indexPath}. Please ensure 'npm run build' was executed.`);
+      
+      // Attempt sibling dist resolution
+      const fallbackPath = path.join(__dirname, 'index.html');
+      if (fs.existsSync(fallbackPath)) {
+        return res.sendFile(fallbackPath);
+      }
+
+      console.error(`[CRITICAL] index.html not found. Paths tried: ${indexPath}, ${fallbackPath}`);
+      res.status(404).send(`Application build incomplete: index.html missing. Check deployment logs for 'npm run build' output.`);
     });
   }
 

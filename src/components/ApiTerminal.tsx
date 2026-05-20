@@ -213,11 +213,11 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
           scale: 1, 
           y: 0,
           height: isMinimized ? '44px' : '480px',
-          width: isMinimized ? '280px' : '700px'
+          width: isMinimized ? '320px' : '750px'
         }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        onClick={handleTerminalClick}
-        className={`fixed bottom-6 right-6 ${currentTheme.bg} backdrop-blur-md border border-[#1A2E47] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[1000] font-mono text-[11px] cursor-text`}
+        onClick={(e) => { e.stopPropagation(); handleTerminalClick(); }}
+        className={`fixed bottom-6 right-6 ${currentTheme.bg} backdrop-blur-md border-2 border-[#1A2E47] rounded-xl shadow-[0_35px_60px_-15px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden z-[1000] font-mono text-[11px] cursor-text transition-all`}
       >
         {/* Drag/Header */}
         <div className={`h-11 ${currentTheme.header} border-b border-[#1A2E47] flex items-center justify-between px-4 shrink-0 select-none`}>
@@ -245,21 +245,22 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
             {/* History Canvas */}
             <div 
               ref={scrollRef}
-              className={`flex-1 overflow-y-auto p-4 ${currentTheme.text} space-y-1.5 scrollbar-thin scrollbar-thumb-blue-900 selection:bg-blue-500/30`}
+              className={`flex-1 overflow-y-auto p-5 ${currentTheme.text} space-y-2 scrollbar-thin scrollbar-thumb-blue-900 selection:bg-emerald-500/30`}
+              onClick={handleTerminalClick}
             >
               <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
                 {history.map((line, i) => renderLine(line, i))}
               </div>
-              {isLoading && <div className="animate-pulse text-blue-400 mt-2">Exécution de la requête API...</div>}
+              {isLoading && <div className="animate-pulse text-emerald-400 mt-2 font-bold select-none">&gt;_ TRAITEMENT API...</div>}
               
               {/* Inline Input Line */}
-              <form onSubmit={handleSubmit} className="flex items-center gap-2 pt-2 border-t border-white/5 pb-20">
-                <span className={`${currentTheme.prompt} shrink-0`}>reseller@hub:~$</span>
+              <form onSubmit={handleSubmit} className="flex items-center gap-2 pt-4 border-t border-white/5 pb-32">
+                <span className={`${currentTheme.prompt} shrink-0 select-none`}>reseller@hub[root]:~$</span>
                 <input 
                   ref={inputRef}
                   autoFocus
                   type="text"
-                  className="flex-1 bg-transparent border-none outline-none text-emerald-400 p-0 m-0 focus:ring-0 font-mono caret-emerald-500"
+                  className="flex-1 bg-transparent border-none outline-none text-emerald-400 p-0 m-0 focus:ring-0 font-mono caret-emerald-400 font-bold"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder=""
