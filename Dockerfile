@@ -28,10 +28,10 @@ COPY --from=builder /app/firebase-applet-config.json ./
 
 # Variables d'environnement par défaut
 ENV NODE_ENV=production
-ENV PORT=3000
+ENV PORT=80
 
 # Exposition du port
-EXPOSE 3000
+EXPOSE 80
 
 # Commande de démarrage
 CMD ["node", "dist/server.cjs"]
