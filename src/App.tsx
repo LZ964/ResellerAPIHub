@@ -16,6 +16,7 @@ import EmailReseller from './components/EmailReseller';
 import AIAssistant from './components/AIAssistant';
 import AIBrainstorm from './components/AIBrainstorm';
 import ProfileCompliance from './components/ProfileCompliance';
+import Documentation from './components/Documentation';
 import { Loader2 } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/brainstorm" element={<AIBrainstorm />} />
           <Route path="/profile" element={<ProfileCompliance />} />
+          <Route path="/docs" element={<Documentation />} />
         </Route>
       </Routes>
     </Router>

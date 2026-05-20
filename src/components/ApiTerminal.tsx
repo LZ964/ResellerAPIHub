@@ -187,6 +187,10 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
   };
 
   const currentTheme = THEMES[theme];
+  
+  const handleTerminalClick = () => {
+    inputRef.current?.focus();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,24 +216,25 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
           width: isMinimized ? '280px' : '700px'
         }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className={`fixed bottom-6 right-6 ${currentTheme.bg} backdrop-blur-md border border-[#1A2E47] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[1000] font-mono text-[11px]`}
+        onClick={handleTerminalClick}
+        className={`fixed bottom-6 right-6 ${currentTheme.bg} backdrop-blur-md border border-[#1A2E47] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[1000] font-mono text-[11px] cursor-text`}
       >
         {/* Drag/Header */}
         <div className={`h-11 ${currentTheme.header} border-b border-[#1A2E47] flex items-center justify-between px-4 shrink-0 select-none`}>
           <div className="flex items-center gap-2">
             <Command size={14} className="text-blue-400" />
-            <span className="text-gray-300 font-bold tracking-tight">api-control:souverain@shell</span>
+            <span className="text-gray-300 font-bold tracking-tight uppercase tracking-widest text-[9px]">api-control:souverain@shell</span>
             {isLoading && <Activity size={12} className="animate-pulse text-emerald-400 ml-2" />}
           </div>
           <div className="flex items-center gap-3">
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".txt" />
-            <button onClick={() => fileInputRef.current?.click()} className="text-gray-500 hover:text-white transition-colors" title="Batch Upload .txt">
+            <button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="text-gray-500 hover:text-white transition-colors cursor-pointer" title="Batch Upload .txt">
               <Sparkles size={14} />
             </button>
-            <button onClick={() => setIsMinimized(!isMinimized)} className="text-gray-500 hover:text-white cursor-pointer transition-colors">
+            <button onClick={(e) => { e.stopPropagation(); setIsMinimized(!isMinimized); }} className="text-gray-500 hover:text-white cursor-pointer transition-colors">
               {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
             </button>
-            <button onClick={onClose} className="text-gray-500 hover:text-red-400 cursor-pointer transition-colors">
+            <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="text-gray-500 hover:text-red-400 cursor-pointer transition-colors">
               <X size={14} />
             </button>
           </div>
@@ -246,21 +251,24 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
                 {history.map((line, i) => renderLine(line, i))}
               </div>
               {isLoading && <div className="animate-pulse text-blue-400 mt-2">Exécution de la requête API...</div>}
+              
+              {/* Inline Input Line */}
+              <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-4 pb-12">
+                <span className={`${currentTheme.prompt}`}>reseller@hub:~$</span>
+                <input 
+                  ref={inputRef}
+                  autoFocus
+                  type="text"
+                  className="flex-1 bg-transparent border-none outline-none text-gray-200 p-0 m-0 focus:ring-0"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder=""
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                />
+              </form>
             </div>
-
-            {/* Input Line */}
-            <form onSubmit={handleSubmit} className="p-3 bg-black/20 border-t border-[#1A2E47] flex items-center gap-2">
-              <span className={`${currentTheme.prompt}`}>reseller@hub:~$</span>
-              <input 
-                ref={inputRef}
-                autoFocus
-                type="text"
-                className="flex-1 bg-transparent border-none outline-none text-gray-200"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Entrez une commande..."
-              />
-            </form>
           </>
         )}
       </motion.div>

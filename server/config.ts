@@ -38,21 +38,16 @@ export function getFirebase() {
 }
 
 // Lazy Gemini Initialization
-let geminiClient: GoogleGenAI | null = null;
+let geminiClient: any = null;
 
-export function getGemini(): GoogleGenAI {
+export function getGemini(): any {
   if (!geminiClient) {
     const key = process.env.GEMINI_API_KEY;
     if (!key) {
       console.warn('[Gemini] Warning: GEMINI_API_KEY is missing. Using empty/dummy model key.');
     }
-    geminiClient = new GoogleGenAI({
-      apiKey: key || 'dummy_api_key_placeholder',
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
+    geminiClient = new (GoogleGenAI as any)({
+      apiKey: key || 'dummy_api_key_placeholder'
     });
   }
   return geminiClient;

@@ -102,7 +102,10 @@ export default function Dashboard() {
           <p className="text-gray-500 mt-1">Résumé en temps réel de votre activité de revente souveraine</p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-oracle-border rounded text-[11px] font-black uppercase tracking-widest hover:bg-gray-50 transition-colors shadow-sm cursor-pointer">
+          <button 
+            onClick={() => navigate('/profile#billing')}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-oracle-border rounded text-[11px] font-black uppercase tracking-widest hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
+          >
             <CreditCard size={14} />
             Solde & Factures
           </button>
@@ -204,38 +207,6 @@ export default function Dashboard() {
 
         {/* Quick Actions */}
         <div className="space-y-6">
-          <div className="bg-[#111] p-8 rounded-2xl text-white shadow-xl shadow-black/20 relative overflow-hidden group border border-[#222]">
-            <div className="absolute top-0 right-0 p-4 opacity-5 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform">
-              <TrendingUp size={120} />
-            </div>
-            <h3 className="text-xl font-black tracking-tighter mb-2 relative z-10 uppercase italic">Connect <span className="text-oracle-red">Gateway</span></h3>
-            <p className="text-gray-400 text-xs mb-6 relative z-10 leading-relaxed">
-              Téléchargez nos modules certifiés pour intégrer le protocole ResellerHUB directement dans vos environnements WHMCS.
-            </p>
-            <button 
-              onClick={async () => {
-                const token = await auth.currentUser?.getIdToken();
-                const res = await fetch('/api/whmcs/module', {
-                  headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                  const blob = await res.blob();
-                  const url = window.URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = 'resellerhub_registrar.php';
-                  a.click();
-                  toast.success("Module WHMCS v1.0 prêt.");
-                } else {
-                  toast.error("Erreur de téléchargement.");
-                }
-              }}
-              className="bg-oracle-red text-white px-6 py-2.5 rounded text-[11px] font-black uppercase tracking-widest shadow-md hover:bg-oracle-red-dark transition-all relative z-10 cursor-pointer border border-white/10"
-            >
-              Télécharger Module
-            </button>
-          </div>
-
           <div onClick={() => navigate('/ai-assistant')} className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:border-blue-500/30 transition-all group">
             <div className="flex items-center gap-4 mb-4">
               <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">

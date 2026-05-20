@@ -5,7 +5,7 @@ let assistantModel: any = null;
 
 export async function executeAgentTurn(uid: string, message: string, history: any[] = []) {
   const { db } = getFirebase();
-  const ai = new GoogleGenAI(process.env.GEMINI_API_KEY || "");
+  const ai = new (GoogleGenAI as any)({ apiKey: process.env.GEMINI_API_KEY || "" });
   
   if (!assistantModel) {
     assistantModel = ai.getGenerativeModel({ model: "gemini-2.0-flash" });

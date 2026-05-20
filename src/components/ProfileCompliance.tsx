@@ -35,6 +35,12 @@ interface ProfileData {
   addressStreet: string;
   addressCity: string;
   addressPostalCode: string;
+  apiApproved?: boolean;
+  apiRequest?: {
+    projectName: string;
+    useCase: string;
+    estimatedVolume: string;
+  };
 }
 
 interface ApiKey {
@@ -45,6 +51,14 @@ interface ApiKey {
   createdAt: any;
 }
 
+interface Invoice {
+  id: string;
+  item: string;
+  total: number;
+  status: string;
+  date: string;
+}
+
 export default function ProfileCompliance() {
   const [activeTab, setActiveTab] = useState('legal');
 
@@ -52,6 +66,7 @@ export default function ProfileCompliance() {
     const hash = window.location.hash;
     if (hash === '#keys') setActiveTab('keys');
     else if (hash === '#billing') setActiveTab('billing');
+    else if (hash === '#security') setActiveTab('security');
     else setActiveTab('legal');
   }, [window.location.hash]);
 
@@ -65,25 +80,34 @@ export default function ProfileCompliance() {
     legalRepresentativeEmail: '',
     addressStreet: '',
     addressCity: '',
-    addressPostalCode: ''
+    addressPostalCode: '',
+    apiApproved: false
   });
 
   const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [balance, setBalance] = useState(0);
   const [depositAmount, setDepositAmount] = useState<number>(50);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [funding, setFunding] = useState(false);
   const [generatingKey, setGeneratingKey] = useState(false);
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+  const [questionnaire, setQuestionnaire] = useState({
+    projectName: '',
+    useCase: '',
+    estimatedVolume: '100-1000'
+  });
 
   useEffect(() => {
     async function loadData() {
       try {
         const token = await auth.currentUser?.getIdToken();
-        const [profRes, keysRes, balRes] = await Promise.all([
+        const [profRes, keysRes, balRes, invRes] = await Promise.all([
           fetch('/api/profile', { headers: { 'Authorization': `Bearer ${token}` } }),
           fetch('/api/keys', { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch('/api/billing/balance', { headers: { 'Authorization': `Bearer ${token}` } })
+          fetch('/api/billing/balance', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/paymenter/invoices', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
 
         if (profRes.ok) {
@@ -95,6 +119,7 @@ export default function ProfileCompliance() {
           const b = await balRes.json();
           setBalance(b.balance);
         }
+        if (invRes.ok) setInvoices(await invRes.json());
       } catch (err) {
         toast.error("Erreur de chargement");
       } finally {
@@ -174,6 +199,14 @@ export default function ProfileCompliance() {
   }, []);
 
   const handleCreateKey = async () => {
+    if (balance < 50) {
+      toast.error("Solde insuffisant (50$ requis).");
+      return;
+    }
+    if (!profile.apiApproved) {
+      toast.error("Approbation API requise.");
+      return;
+    }
     setGeneratingKey(true);
     try {
       const token = await auth.currentUser?.getIdToken();
@@ -190,9 +223,56 @@ export default function ProfileCompliance() {
         toast.success(`Clef générée: ${newKeyData.key}`);
         const listRes = await fetch('/api/keys', { headers: { 'Authorization': `Bearer ${token}` } });
         setKeys(await listRes.json());
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Erreur lors de la génération");
       }
     } finally {
       setGeneratingKey(false);
+    }
+  };
+
+  const submitQuestionnaire = async () => {
+    if (!questionnaire.projectName || !questionnaire.useCase) {
+      toast.error("Veuillez remplir tous les champs.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ apiRequest: questionnaire })
+      });
+      if (res.ok) {
+        setProfile(prev => ({ ...prev, apiRequest: questionnaire }));
+        toast.success("Demande d'accès transmise à la gouvernance HUB.");
+        setShowQuestionnaire(false);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDownloadWHMCS = async () => {
+    const token = await auth.currentUser?.getIdToken();
+    const res = await fetch('/api/whmcs/module', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sovereign_whmcs_v1.zip';
+      a.click();
+      toast.success("Module WHMCS prêt au format .ZIP");
+    } else {
+      toast.error("Erreur de téléchargement.");
     }
   };
 
@@ -280,7 +360,8 @@ export default function ProfileCompliance() {
           {[
             { id: 'legal', name: 'Identité Légale', icon: FileText },
             { id: 'billing', name: 'Facturation & Fonds', icon: Wallet },
-            { id: 'keys', name: 'Accès API & Sécurité', icon: Key },
+            { id: 'keys', name: 'Accès API HUB', icon: Key },
+            { id: 'security', name: 'Sécurité & 2FA', icon: ShieldAlert },
           ].map(tab => (
             <button
               key={tab.id}
@@ -306,71 +387,129 @@ export default function ProfileCompliance() {
           
           {activeTab === 'keys' && (
             <>
-              {/* 2FA Security Section */}
-              <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6">
-                <div className="flex items-center gap-3 border-b border-gray-50 pb-5">
-                  <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                    <ShieldAlert size={20} />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-gray-950 text-base">Sécurité & 2FA</h2>
-                    <p className="text-[10px] text-gray-400 font-medium">Authentification double facteur par email</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-6">
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2.5">Email de secours pour le 2FA</label>
-                    <div className="relative group">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={16} />
-                      <input
-                        type="email"
-                        placeholder="2fa-auth@votre-domaine.com"
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-11 pr-4 py-3 text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
-                        value={profile.email2fa}
-                        onChange={(e) => setProfile({ ...profile, email2fa: e.target.value })}
-                      />
+              {/* API Approval & Questionnaire Section */}
+              {!profile.apiApproved && (
+                <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+                  <div className="flex items-center gap-3 border-b border-gray-50 pb-5">
+                    <div className="p-2 bg-oracle-red/10 text-oracle-red rounded-lg">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-gray-950 text-base italic uppercase tracking-tighter">Approbation Sovereign API</h2>
+                      <p className="text-[10px] text-gray-400 font-medium tracking-widest uppercase">Étape obligatoire d'audit de sécurité</p>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* API Keys Management */}
-              <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+                  {profile.apiRequest ? (
+                    <div className="p-10 border-2 border-dashed border-gray-100 rounded-3xl text-center space-y-4">
+                      <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto animate-pulse">
+                        <Loader2 size={32} />
+                      </div>
+                      <h3 className="text-lg font-black text-gray-900 uppercase italic">Candidature en cours...</h3>
+                      <p className="text-gray-500 text-sm max-w-sm mx-auto leading-relaxed">
+                        Votre projet <strong>"{profile.apiRequest.projectName}"</strong> a été soumis pour analyse. La gouvernance HUB valide généralement les accès sous 24h.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="p-5 bg-oracle-bg border border-oracle-border rounded-xl">
+                        <p className="text-xs text-gray-600 leading-relaxed font-medium">
+                          Pour garantir la pérennité du réseau HUB, chaque partenaire doit auditer son cas d'usage. L'accès API nécessite un solde minimum de <strong>50.00$</strong> et une validation manuelle.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-6">
+                        <div>
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Nom du projet / Plateforme</label>
+                          <input
+                            type="text"
+                            placeholder="EX: Dashboard Billing Canada"
+                            className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white transition-all outline-none"
+                            value={questionnaire.projectName}
+                            onChange={(e) => setQuestionnaire({ ...questionnaire, projectName: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Ulisitation prévue (En détails)</label>
+                          <textarea
+                            placeholder="Décrivez comment vous allez utiliser nos endpoints..."
+                            className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white transition-all outline-none min-h-[100px]"
+                            value={questionnaire.useCase}
+                            onChange={(e) => setQuestionnaire({ ...questionnaire, useCase: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Volume mensuel d'opérations</label>
+                          <select
+                            className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm font-bold focus:bg-white transition-all outline-none"
+                            value={questionnaire.estimatedVolume}
+                            onChange={(e) => setQuestionnaire({ ...questionnaire, estimatedVolume: e.target.value })}
+                          >
+                            <option value="100-1000">100 - 1,000</option>
+                            <option value="1000-10000">1,000 - 10,000</option>
+                            <option value="unlimited">Partenaire Entreprise (&gt;10,000)</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={submitQuestionnaire}
+                        disabled={saving}
+                        className="w-full py-4 bg-oracle-red text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-xl shadow-oracle-red/20 hover:bg-oracle-red-dark transition-all"
+                      >
+                        Soumettre ma Candidature API
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* API Keys Management - Logic gated by approval and balance */}
+              <div className={cn(
+                "bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6 transition-all",
+                (!profile.apiApproved || balance < 50) && "opacity-40 pointer-events-none grayscale"
+              )}>
                 <div className="flex items-center justify-between border-b border-gray-50 pb-5">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
                       <Key size={20} />
                     </div>
                     <div>
-                      <h2 className="font-bold text-gray-950 text-base">Clefs API HUB</h2>
-                      <p className="text-[10px] text-gray-400 font-medium">Accès programmatique sécurisé</p>
+                      <h2 className="font-bold text-gray-950 text-base italic uppercase tracking-tighter">Clefs API HUB</h2>
+                      <p className="text-[10px] text-gray-400 font-medium tracking-widest uppercase">Tokens de sécurité programmatique</p>
                     </div>
                   </div>
                   <button
                     type="button"
                     onClick={handleCreateKey}
-                    disabled={generatingKey}
-                    className="flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+                    disabled={generatingKey || !profile.apiApproved || balance < 50}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
                   >
                     {generatingKey ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
                     Nouveau Token
                   </button>
                 </div>
 
+                {balance < 50 && (
+                  <div className="p-3 bg-red-50 text-red-600 rounded-lg border border-red-100 flex items-center gap-2 text-[10px] font-bold uppercase">
+                    <AlertTriangle size={14} />
+                    Solde minimum de 50.00$ requis pour activer le bouton de génération.
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   {keys.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400 italic text-xs border border-dashed border-gray-100 rounded-xl">Aucune clef API active.</div>
+                    <div className="text-center py-8 text-gray-400 italic text-[10px] border border-dashed border-gray-100 rounded-xl uppercase font-bold tracking-widest">Aucun token actif détecté.</div>
                   ) : (
                     keys.map(k => (
                       <div key={k.id} className="p-4 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-between group">
                         <div className="flex-1">
-                          <p className="text-xs font-bold text-gray-900 flex items-center gap-2">
+                          <p className="text-xs font-bold text-gray-900 flex items-center gap-2 uppercase">
                             {k.name}
-                            <span className="text-[8px] bg-white border border-gray-200 px-1.5 py-0.5 rounded text-gray-400">REST API v1</span>
+                            <span className="text-[8px] bg-white border border-gray-200 px-1.5 py-0.5 rounded text-gray-400 font-black tracking-widest">HTTPS/TLS v2.0</span>
                           </p>
                           <div className="flex items-center gap-2 mt-1">
-                            <p className="text-[9px] text-blue-600 font-mono bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                            <p className="text-[9px] text-blue-600 font-mono bg-blue-50 px-2 py-0.5 rounded border border-blue-100 font-black">
                               {k.key}
                             </p>
                             <button 
@@ -379,7 +518,7 @@ export default function ProfileCompliance() {
                                 navigator.clipboard.writeText(k.key);
                                 toast.success("Clef copiée !");
                               }}
-                              className="text-[9px] text-gray-400 hover:text-blue-600 underline font-bold"
+                              className="text-[9px] text-gray-500 hover:text-oracle-red underline font-black uppercase tracking-widest transition-colors"
                             >
                               Copier
                             </button>
@@ -388,9 +527,9 @@ export default function ProfileCompliance() {
                         <button 
                           type="button"
                           onClick={() => {
-                            if (confirm("Révoquer cet accès ?")) handleDeleteKey(k.id);
+                            if (confirm("Révoquer cet accès immédiatement ? Cette action est irréversible.")) handleDeleteKey(k.id);
                           }}
-                          className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                          className="p-2 text-gray-300 hover:text-oracle-red hover:bg-oracle-red/10 rounded-lg transition-all"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -399,7 +538,64 @@ export default function ProfileCompliance() {
                   )}
                 </div>
               </div>
+
+              {/* Gateway Connect Section - MOVED FROM DASHBOARD */}
+              <div className="bg-[#0a0a0a] p-8 rounded-2xl text-white shadow-xl relative overflow-hidden group border border-oracle-red/20">
+                <div className="absolute top-0 right-0 p-4 opacity-5 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform">
+                  <TrendingUp size={120} />
+                </div>
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-oracle-red/20 border border-oracle-red/30 rounded flex items-center justify-center text-oracle-red">
+                      <Plus size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-black tracking-tighter uppercase italic text-lg">Connect <span className="text-oracle-red">Gateway</span></h3>
+                      <p className="text-[8px] text-gray-500 font-black tracking-[0.3em] uppercase">Module Registrar v1.0.2</p>
+                    </div>
+                  </div>
+                  <p className="text-gray-400 text-xs mb-6 leading-relaxed max-w-sm font-medium">
+                    Intégrez le flux Sovereign ResellerHUB directement dans votre panneau WHMCS. Gérez les domaines et SSL automatiquement pour vos clients.
+                  </p>
+                  <button 
+                    onClick={handleDownloadWHMCS}
+                    className="bg-oracle-red text-white px-8 py-3 rounded text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-oracle-red/30 hover:bg-white hover:text-oracle-red transition-all cursor-pointer flex items-center gap-2 group-hover:translate-x-2 border border-transparent hover:border-oracle-red"
+                  >
+                    Télécharger Module (.ZIP)
+                  </button>
+                </div>
+              </div>
             </>
+          )}
+
+          {activeTab === 'security' && (
+            <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+              <div className="flex items-center gap-3 border-b border-gray-50 pb-5">
+                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                  <ShieldAlert size={20} />
+                </div>
+                <div>
+                  <h2 className="font-bold text-gray-950 text-base italic uppercase tracking-tighter">Sécurité & 2FA</h2>
+                  <p className="text-[10px] text-gray-400 font-medium tracking-widest uppercase">Protocoles d'accès critique</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                <div>
+                  <label className="block text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2.5">Email de secours pour le 2FA</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={16} />
+                    <input
+                      type="email"
+                      placeholder="2fa-auth@votre-domaine.com"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-11 pr-4 py-3 text-sm font-bold focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
+                      value={profile.email2fa}
+                      onChange={(e) => setProfile({ ...profile, email2fa: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {activeTab === 'billing' && (
@@ -467,6 +663,50 @@ export default function ProfileCompliance() {
                   <p className="text-[10px] text-blue-700 leading-relaxed font-medium">
                     Un dépôt initial de <strong>50.00$</strong> est requis pour l'activation souveraine de votre compte. Les fonds sont utilisables pour l'achat de domaines, SSL et services API pro.
                   </p>
+                </div>
+
+                {/* Invoice History Section */}
+                <div className="space-y-4 pt-6">
+                  <div className="flex items-center gap-3">
+                    <History size={18} className="text-gray-400" />
+                    <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">historique des factures</h3>
+                  </div>
+                  
+                  <div className="bg-gray-50 border border-gray-100 rounded-2xl overflow-hidden">
+                    <table className="w-full text-left text-[10px]">
+                      <thead className="bg-gray-100 text-gray-500 font-black uppercase tracking-widest">
+                        <tr>
+                          <th className="px-4 py-3">ID Facture</th>
+                          <th className="px-4 py-3">Désignation</th>
+                          <th className="px-4 py-3">Date</th>
+                          <th className="px-4 py-3">Montant</th>
+                          <th className="px-4 py-3">État</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {invoices.length === 0 ? (
+                          <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 font-bold uppercase tracking-widest">Aucune facture enregistrée.</td></tr>
+                        ) : (
+                          invoices.map(inv => (
+                            <tr key={inv.id} className="hover:bg-white transition-colors group">
+                              <td className="px-4 py-3 font-mono font-bold text-blue-600">#{inv.id}</td>
+                              <td className="px-4 py-3 font-black text-gray-900 group-hover:text-oracle-red transition-colors">{inv.item}</td>
+                              <td className="px-4 py-3 font-bold text-gray-500">{inv.date}</td>
+                              <td className="px-4 py-3 font-black text-gray-900">{inv.total}$ CAD</td>
+                              <td className="px-4 py-3 uppercase tracking-tighter">
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-full font-black border",
+                                  inv.status === 'Payé' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100"
+                                )}>
+                                  {inv.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>

@@ -14,13 +14,15 @@ import {
   Sparkles,
   MessageSquare,
   ChevronDown,
+  ChevronRight,
   ShieldCheck,
   Building,
   Menu,
   Activity,
   CheckCircle2,
   AlertCircle,
-  Terminal
+  Terminal,
+  Book
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -31,6 +33,117 @@ function cn(...inputs: ClassValue[]) {
 
 interface LayoutProps {
   user: User;
+}
+
+function SupportChat({ user }: { user: User }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const sendMessage = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ 
+          message: input,
+          context: "Tu es l'agent de support technique de Sovereign Hub. Tu aides les utilisateurs à déboguer leurs noms de domaine, records DNS, certificats SSL et configurations email. Tu as une connaissance parfaite de l'API Sovereign Hub et du protocole Oracle Cloud Professionnel."
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end gap-4 pointer-events-none">
+      {isOpen && (
+        <div className="w-80 h-[450px] bg-white border border-gray-200 rounded-3xl shadow-2xl flex flex-col overflow-hidden pointer-events-auto animate-in slide-in-from-bottom-10 duration-300">
+          <div className="p-4 bg-oracle-red text-white flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-300 rounded-full animate-pulse" />
+              <span className="font-bold text-xs uppercase tracking-widest">Support Souverain</span>
+            </div>
+            <button onClick={() => setIsOpen(false)} className="hover:bg-white/10 p-1 rounded transition-colors cursor-pointer">
+              <ChevronDown size={16} />
+            </button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-oracle-bg flex flex-col scroll-smooth">
+            {messages.length === 0 && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+                <div className="p-3 bg-white rounded-2xl shadow-sm border border-gray-100 mb-3">
+                  <ShieldCheck className="text-oracle-red w-6 h-6" />
+                </div>
+                <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest mb-1 italic">Agent ID: HUB-Support-01</p>
+                <p className="text-[11px] text-gray-500 font-medium leading-relaxed">Prêt à déboguer vos domaines, DNS, SSL et emails en temps réel.</p>
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} className={cn(
+                "max-w-[85%] p-3 text-[11px] font-bold leading-relaxed shadow-sm",
+                m.role === 'user' 
+                  ? "bg-oracle-red text-white rounded-2xl rounded-tr-sm self-end" 
+                  : "bg-white text-gray-800 rounded-2xl rounded-tl-sm self-start border border-gray-100"
+              )}>
+                {m.content}
+              </div>
+            ))}
+            {loading && (
+              <div className="self-start bg-white p-3 rounded-2xl rounded-tl-sm border border-gray-100 flex gap-1 items-center">
+                <div className="w-1 h-1 bg-gray-300 rounded-full animate-bounce" />
+                <div className="w-1 h-1 bg-gray-300 rounded-full animate-bounce delay-100" />
+                <div className="w-1 h-1 bg-gray-300 rounded-full animate-bounce delay-200" />
+              </div>
+            )}
+          </div>
+
+          <div className="p-3 bg-white border-t border-gray-100">
+            <div className="flex items-center gap-2 bg-gray-50 rounded-2xl border border-gray-100 px-3 py-1.5 focus-within:border-oracle-red/30 transition-all">
+              <input 
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                placeholder="Ex: Pourquoi mon SSL est invalide ?"
+                className="flex-1 bg-transparent border-none outline-none text-[11px] font-bold text-gray-850 placeholder:text-gray-400"
+              />
+              <button 
+                onClick={sendMessage}
+                className="p-1.5 bg-oracle-red text-white rounded-xl hover:bg-oracle-red-dark transition-all cursor-pointer disabled:opacity-50"
+                disabled={loading || !input.trim()}
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-14 h-14 bg-oracle-red text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all pointer-events-auto cursor-pointer border-4 border-white group"
+      >
+        <MessageSquare className={cn("w-6 h-6 transition-transform", isOpen ? "rotate-90" : "group-hover:scale-110")} />
+        {!isOpen && (
+          <div className="absolute -top-1 -right-1 bg-emerald-500 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+          </div>
+        )}
+      </button>
+    </div>
+  );
 }
 
 export default function Layout({ user }: LayoutProps) {
@@ -91,6 +204,7 @@ export default function Layout({ user }: LayoutProps) {
       items: [
         { name: 'Certificats SSL', path: '/ssl', icon: Lock },
         { name: 'Messagerie Pro', path: '/emails', icon: Mail },
+        { name: 'Documentation', path: '/docs', icon: Book },
       ]
     },
     { 
@@ -245,12 +359,12 @@ export default function Layout({ user }: LayoutProps) {
           <div className="flex items-center gap-6">
             
             <button 
-              className="px-3 py-1.5 text-gray-500 hover:text-oracle-red transition-all cursor-pointer border border-transparent hover:border-oracle-border rounded flex items-center gap-2 group"
+              className="px-3 py-2 bg-black text-emerald-400 border border-[#313131] rounded-lg flex items-center gap-2 group hover:border-emerald-500/50 transition-all shadow-lg cursor-pointer"
               title="Terminal api-control"
               onClick={() => setTerminalOpen(!terminalOpen)}
             >
               <Terminal size={14} className="group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Admin CLI</span>
+              <span className="text-[9px] font-black uppercase tracking-widest font-mono">cli_shell</span>
             </button>
 
             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-oracle-border text-gray-600 rounded text-[9px] font-black uppercase tracking-[0.2em]">
@@ -350,6 +464,9 @@ export default function Layout({ user }: LayoutProps) {
           </footer>
         </main>
       </div>
+
+      {/* Support floating chat */}
+      <SupportChat user={user} />
 
       {/* Global Command Center / Terminal Overlay */}
       <ApiTerminal 
