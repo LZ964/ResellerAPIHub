@@ -175,14 +175,29 @@ async function startServer() {
   const PORT = 3000;
 
   // --- Health Checks (Defined very early to ensure reachability) ---
-  app.get('/api/health', (req, res) => res.json({ 
-    status: 'ok', 
-    environment: process.env.NODE_ENV, 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    cwd: process.cwd(),
-    dirname: _dirname
-  }));
+  app.get('/api/health', (req, res) => {
+    const diagnostic = {
+      status: 'ok',
+      environment: process.env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      cwd: process.cwd(),
+      dirname: _dirname,
+      distPathResolved: '',
+      indexExists: false
+    };
+
+    // Re-run the detection logic for diagnostics
+    let dPath = path.resolve(_dirname);
+    if (!fs.existsSync(path.join(dPath, 'index.html'))) {
+      dPath = path.resolve(process.cwd(), 'dist');
+    }
+    
+    diagnostic.distPathResolved = dPath;
+    diagnostic.indexExists = fs.existsSync(path.join(dPath, 'index.html'));
+    
+    res.json(diagnostic);
+  });
   app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
   // Security Headers
@@ -1201,13 +1216,25 @@ function resellerhub_RegisterDomain($params) {
     app.use(vite.middlewares);
   } else {
     // Robust path resolution for production in Docker/Dokploy
-    // server.cjs is in dist/, index.html is in dist/.
-    // Try absolute path first, then CWD fallback.
-    let distPath = path.resolve(_dirname);
-    if (!fs.existsSync(path.join(distPath, 'index.html'))) {
-      distPath = path.resolve(process.cwd(), 'dist');
-    }
+    // In many bundled Node environments, __dirname points to the directory of the bundle.
+    // If we are in /app/dist/server.cjs, __dirname is /app/dist.
+    // index.html should be in the same folder.
     
+    const possiblePaths = [
+      path.resolve(_dirname),                  // Primary: same as server.cjs
+      path.resolve(process.cwd(), 'dist'),      // Root/dist
+      path.resolve(process.cwd()),             // Root
+      path.join(_dirname, '..'),                // Parent of _dirname (if server.cjs is in a subfolder)
+    ];
+
+    let distPath = possiblePaths[0];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(path.join(p, 'index.html'))) {
+        distPath = p;
+        break;
+      }
+    }
+
     console.log(`[Prod] Static asset root resolved to: ${distPath}`);
     
     app.use(express.static(distPath, { index: false }));
