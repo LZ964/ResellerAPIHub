@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   TrendingUp, 
   Globe, 
@@ -8,7 +9,8 @@ import {
   ExternalLink,
   ChevronRight,
   Loader2,
-  Inbox
+  Inbox,
+  Sparkles
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { auth } from '../lib/firebase';
@@ -24,6 +26,7 @@ interface Product {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [stats, setStats] = useState({
     domains: 0,
@@ -212,6 +215,25 @@ export default function Dashboard() {
             <button className="bg-white text-blue-600 px-6 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-gray-50 transition-colors relative z-10 cursor-pointer">
               Télécharger
             </button>
+          </div>
+
+          <div onClick={() => navigate('/ai-assistant')} className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:border-blue-500/30 transition-all group">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                <Sparkles size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 tracking-tight">Agent IA assigné</h3>
+                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Optimisation Active</p>
+              </div>
+            </div>
+            <p className="text-gray-500 text-sm mb-4 leading-relaxed">
+              Consultez votre agent dédié pour des stratégies de croissance et de pérennité.
+            </p>
+            <div className="flex items-center gap-2 text-blue-600 text-xs font-bold uppercase tracking-widest">
+              Lancer une discussion
+              <ChevronRight size={14} />
+            </div>
           </div>
 
           <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">

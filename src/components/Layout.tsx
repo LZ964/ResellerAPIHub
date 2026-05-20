@@ -64,6 +64,15 @@ export default function Layout({ user }: LayoutProps) {
   }, [location.pathname]);
 
   const handleLogout = async () => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (err) {
+      console.warn("Server logout log failed");
+    }
     await signOut(auth);
     navigate('/auth');
   };
@@ -74,21 +83,21 @@ export default function Layout({ user }: LayoutProps) {
     { name: 'Certificats SSL', path: '/ssl', icon: Lock },
     { name: 'Comptes Emails pro', path: '/emails', icon: Mail },
     { name: 'Idées de Marques IA', path: '/brainstorm', icon: Sparkles },
-    { name: 'Conseiller IA Souverain', path: '/ai-assistant', icon: MessageSquare },
-    { name: 'Profil & Conformité CA', path: '/profile', icon: Building },
+    { name: 'Agent IA assigné', path: '/ai-assistant', icon: MessageSquare },
+    { name: 'Profil', path: '/profile', icon: Building },
   ];
 
-  // Map route path to human-readable breadcrumbs (OVH / Oracle Style)
+  // Map route path to human-readable breadcrumbs
   const getBreadcrumbs = () => {
     const path = location.pathname;
-    const base = "Console Cloud Reseller";
-    if (path === '/') return [base, "Aperçu de l'Activité"];
-    if (path === '/domains') return [base, "Nommage & Infrastructures DNSZone"];
-    if (path === '/ssl') return [base, "Sécurisation & Certificats SSL"];
-    if (path === '/emails') return [base, "Messagerie Professionnelle Souveraine"];
-    if (path === '/brainstorm') return [base, "Générateur AI de Marques"];
-    if (path === '/ai-assistant') return [base, "Assistant d'Architecture"];
-    if (path === '/profile') return [base, "Paramètres & Conformité Nationale Canada"];
+    const base = "Console ResellerHub";
+    if (path === '/') return [base, "Aperçu"];
+    if (path === '/domains') return [base, "Infrastructures DNS"];
+    if (path === '/ssl') return [base, "Certificats SSL"];
+    if (path === '/emails') return [base, "Messagerie Professionnelle"];
+    if (path === '/brainstorm') return [base, "Générateur AI"];
+    if (path === '/ai-assistant') return [base, "Agent IA"];
+    if (path === '/profile') return [base, "Paramètres Profil"];
     return [base, "Console"];
   };
 
@@ -107,7 +116,7 @@ export default function Layout({ user }: LayoutProps) {
             </div>
             <div>
               <span className="font-bold text-base text-white tracking-tight uppercase">ResellerHub</span>
-              <span className="block text-[9px] uppercase tracking-wider font-mono text-blue-400 font-semibold">Sovereign Cloud v3</span>
+              <span className="block text-[9px] uppercase tracking-wider font-mono text-blue-400 font-semibold">Global API Console</span>
             </div>
           </div>
         </div>
@@ -136,14 +145,17 @@ export default function Layout({ user }: LayoutProps) {
 
         {/* User context card & quick sign-out links */}
         <div className="p-4 bg-[#0B1A2F] border-t border-[#1B304C]">
-          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-[#14263E] border border-[#1C3352] mb-3">
-            <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-inner">
+          <div 
+            onClick={() => navigate('/profile')}
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-[#14263E] border border-[#1C3352] mb-3 cursor-pointer hover:bg-[#1E3A5F] hover:border-blue-500/30 transition-all group"
+          >
+            <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-inner group-hover:scale-110 transition-transform">
               {user.email?.[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-white truncate">{user.displayName || 'Utilisateur'}</p>
-              <span className="inline-block text-[9px] font-mono text-emerald-400 font-bold bg-emerald-950 px-1.5 rounded border border-emerald-900 mt-0.5">
-                CANADA RESELLER
+              <span className="inline-block text-[9px] font-mono text-emerald-400 font-bold bg-emerald-950 px-1.5 rounded border border-emerald-900 mt-0.5 uppercase tracking-widest">
+                Authorized Agent
               </span>
             </div>
           </div>
@@ -182,20 +194,20 @@ export default function Layout({ user }: LayoutProps) {
           {/* Right: Functional Profile dropdown + Canadian Validation Status */}
           <div className="flex items-center gap-6">
             
-            {/* Terminal Trigger Button (Top Right as requested) */}
+            {/* Terminal Trigger Button */}
             <button 
               className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer border border-transparent hover:border-blue-100 flex items-center gap-2 group"
               title="Terminal api-control"
               onClick={() => setTerminalOpen(!terminalOpen)}
             >
               <Terminal size={18} className="group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline text-gray-400 group-hover:text-blue-600">CLI</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline text-gray-400 group-hover:text-blue-600">Terminal CLI</span>
             </button>
 
-            {/* Sovereign Canada Shield Indicator */}
-            <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-800 rounded-md text-[10px] font-bold uppercase tracking-wider">
-              <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-              Prestation Canada-Souveraine
+            {/* Global Shield Indicator */}
+            <div className="hidden md:flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-[10px] font-bold uppercase tracking-widest">
+              <ShieldCheck className="w-4 h-4 text-blue-500" />
+              Secure Hub Core
             </div>
 
             {/* Profile Menu Trigger */}
@@ -217,7 +229,7 @@ export default function Layout({ user }: LayoutProps) {
                   <div className="fixed inset-0 z-40" onClick={() => setProfileDropdownOpen(false)} />
                   <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 text-xs animate-in fade-in slide-in-from-top-1 duration-200">
                     <div className="border-b border-gray-100 pb-3 mb-3">
-                      <p className="font-bold text-gray-900 text-sm">Gestion du Profil Canadien</p>
+                      <p className="font-bold text-gray-900 text-sm">Gestion du Profil</p>
                       <p className="text-gray-400 text-[10px] truncate mt-0.5">{user.email}</p>
                     </div>
 
@@ -229,11 +241,11 @@ export default function Layout({ user }: LayoutProps) {
                           <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5" />
                         )}
                         <div>
-                          <p className="font-bold text-gray-800">Conformité Juridique</p>
+                          <p className="font-bold text-gray-800">État du compte</p>
                           <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">
                             {isProfileComplete 
-                              ? `Enregistré sous ${profile.legalBusinessStatus.toUpperCase()} (${profile.addressProvince})`
-                              : "Complétez vos coordonnées canadiennes obligatoires pour légaliser vos transactions."
+                              ? `Profil vérifié sous le statut ${profile.legalBusinessStatus.toUpperCase()}.`
+                              : "Complétez vos coordonnées obligatoires pour légaliser vos transactions."
                             }
                           </p>
                         </div>

@@ -516,7 +516,7 @@ export default function DomainReseller() {
                     <div className="p-4 bg-gray-50 rounded-xl border border-gray-200/60 space-y-1">
                       <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Type d'Infrastructure</p>
                       <p className="text-sm font-bold text-blue-600 flex items-center gap-1.5">
-                        <CheckCircle2 size={15} /> DNS AnyCAST Souverain
+                        <CheckCircle2 size={15} /> DNS AnyCAST Global Security Hub
                       </p>
                     </div>
 
@@ -864,7 +864,7 @@ export default function DomainReseller() {
         <div className="space-y-8">
           <div>
             <h1 className="text-3xl font-bold font-sans text-gray-950 tracking-tight">Services de Nommage & Domaines</h1>
-            <p className="text-gray-500 text-sm mt-1">Recherchez, provisionnez et gérez des zones DNS Anycast pour vos entités au Canada.</p>
+            <p className="text-gray-500 text-sm mt-1">Recherchez, provisionnez et gérez des zones DNS Anycast pour vos entités à l'international.</p>
           </div>
 
           {/* Navigation Bar matching OVH design and layout */}

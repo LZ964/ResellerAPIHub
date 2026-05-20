@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Terminal, X, Minimize2, Maximize2, Command, ShieldCheck, Activity } from 'lucide-react';
+import { Terminal, X, Minimize2, Maximize2, Command, ShieldCheck, Activity, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
 
@@ -19,29 +19,59 @@ interface ApiTerminalProps {
   onClose: () => void;
 }
 
+const THEMES = {
+  classic: { bg: 'bg-[#0B1A2F]/95', header: 'bg-[#0F213A]', text: 'text-emerald-500/90', prompt: 'text-blue-400' },
+  gnome: { bg: 'bg-[#171421]/98', header: 'bg-[#241f31]', text: 'text-gray-100', prompt: 'text-[#4e9a06]' },
+  solarized: { bg: 'bg-[#002b36]/95', header: 'bg-[#073642]', text: 'text-[#839496]', prompt: 'text-[#b58900]' },
+  matrix: { bg: 'bg-black/95', header: 'bg-black border-emerald-900', text: 'text-[#00FF41]', prompt: 'text-[#00FF41] font-bold' }
+};
+
 export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProps) {
+  const [theme, setTheme] = useState<keyof typeof THEMES>('classic');
   const [isMinimized, setIsMinimized] = useState(false);
-  const [history, setHistory] = useState<string[]>(['Sovereign Cloud Console [Version 3.4.1]', '(c) 2026 ResellerHub Canada. Tous droits réservés.', 'Tapez "help" pour voir les commandes "api-control".']);
+  const [history, setHistory] = useState<string[]>(['Sovereign Cloud Console [Version 3.4.2]', 'Tapez "help" pour voir les commandes "api-control".']);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Simple fingerprint generation
-  const getFingerprint = () => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return 'standard_client_v1';
-    ctx.textBaseline = "top";
-    ctx.font = "14px 'Arial'";
-    ctx.fillStyle = "#f60";
-    ctx.fillRect(125,1,62,20);
-    ctx.fillStyle = "#069";
-    ctx.fillText("reseller_hub_v3", 2, 15);
-    ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
-    ctx.fillText("reseller_hub_v3", 4, 17);
-    return btoa(canvas.toDataURL()).slice(-20);
+  const getFingerprint = () => 'env_v3_browser';
+
+  const renderLine = (line: string, i: number) => {
+    const trimmed = line.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        const obj = JSON.parse(line);
+        const formatted = JSON.stringify(obj, null, 2);
+        return (
+          <div key={i} className="my-3 p-3 bg-black/30 rounded-xl border border-white/5 animate-in fade-in zoom-in-95 duration-300">
+            <div className="flex items-center gap-2 mb-2 text-[9px] font-bold text-gray-500 uppercase tracking-widest border-b border-white/5 pb-2">
+              <Activity size={10} />
+              <span>Données API (JSON)</span>
+            </div>
+            <pre className="whitespace-pre-wrap leading-relaxed text-[10px]">
+              {formatted.split('\n').map((l, idx) => {
+                const isKey = l.includes('":');
+                const isStringVal = !isKey && l.includes('"');
+                const isBoolOrNumber = !isKey && !isStringVal && /[0-9]|true|false|null/.test(l);
+                
+                let color = 'text-gray-400';
+                if (isKey) color = 'text-blue-400 font-bold';
+                else if (isStringVal) color = 'text-emerald-400';
+                else if (isBoolOrNumber) color = 'text-amber-400';
+                
+                return <div key={idx} className={color}>{l}</div>;
+              })}
+            </pre>
+          </div>
+        );
+      } catch (e) {
+        return <pre key={i} className="whitespace-pre-wrap leading-relaxed">{line}</pre>;
+      }
+    }
+    return <pre key={i} className="whitespace-pre-wrap leading-relaxed">{line}</pre>;
   };
 
   useEffect(() => {
@@ -50,59 +80,40 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
     }
   }, [history]);
 
-  const execCommand = async (fullCommand: string) => {
+  const execCommand = async (fullCommand: string, isBatch = false) => {
     const parts = fullCommand.trim().split(' ');
     const base = parts[0];
     const cmd = parts[1];
     const args = parts.slice(2);
 
-    setHistory(prev => [...prev, `\n> ${fullCommand}`]);
+    if (!isBatch) setHistory(prev => [...prev, `\n> ${fullCommand}`]);
+
+    if (base === 'theme') {
+      const newTheme = args[0] as keyof typeof THEMES;
+      if (THEMES[newTheme]) {
+        setTheme(newTheme);
+        setHistory(prev => [...prev, `Thème changé pour [${newTheme}]`]);
+      } else {
+        setHistory(prev => [...prev, `Thèmes disponibles: classic, gnome, solarized, matrix`]);
+      }
+      return;
+    }
 
     if (base !== 'api-control') {
-      if (base === 'clear') {
-        setHistory([]);
-        return;
-      }
+      if (base === 'clear') { setHistory([]); return; }
       if (base === 'help' || base === '?') {
-        setHistory(prev => [...prev, 'Utilisez "api-control <command>" pour interagir avec l\'infrastructure.', 'Commandes: register, search, dns:add, logs:show, whoami']);
+        setHistory(prev => [...prev, 'Utilisez "api-control <command>" ou "theme <name>".', 'Tapez "api-control help" pour la liste des commandes API.']);
         return;
       }
-      setHistory(prev => [...prev, `Commande non reconnue: ${base}. Essayez "api-control help".`]);
+      setHistory(prev => [...prev, `Commande non reconnue: ${base}.`]);
       return;
     }
 
     if (!cmd) {
-      setHistory(prev => [...prev, 'Erreur: Commande api-control manquante. Tapez "api-control help".']);
+      setHistory(prev => [...prev, 'Erreur: Commande api-control manquante.']);
       return;
     }
 
-    if (cmd === 'logs:show') {
-      setIsLoading(true);
-      try {
-        const token = await auth.currentUser?.getIdToken();
-        const res = await fetch('/api/logs', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const logs: LogEntry[] = await res.json();
-        const logLines = logs.map(l => 
-          `[${new Date(l.timestamp).toLocaleTimeString()}] ${l.action.padEnd(15)} | IP: ${l.ip} | FP: ${l.fingerprint.slice(0,8)}...`
-        );
-        setHistory(prev => [...prev, ...logLines]);
-      } catch (err) {
-        setHistory(prev => [...prev, 'Erreur lors de la récupération des logs.']);
-      } finally {
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    if (cmd === 'whoami') {
-      const user = auth.currentUser;
-      setHistory(prev => [...prev, `ID Utilisateur: ${user?.uid}`, `Email: ${user?.email}`, `Status: AUTHENTICATED_PRIVILEGED`, `Fingerprint: ${getFingerprint()}`]);
-      return;
-    }
-
-    // Proxy other commands to backend
     setIsLoading(true);
     try {
       const token = await auth.currentUser?.getIdToken();
@@ -110,8 +121,7 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'x-fingerprint': getFingerprint()
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ command: cmd, args })
       });
@@ -120,9 +130,10 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
         setHistory(prev => [...prev, `Erreur: ${data.error}`]);
       } else {
         setHistory(prev => [...prev, data.output]);
-        if (data.data && typeof data.data === 'object') {
-          setHistory(prev => [...prev, JSON.stringify(data.data, null, 2)]);
+        if (data.data) {
+          setHistory(prev => [...prev, JSON.stringify(data.data)]);
         }
+        window.dispatchEvent(new CustomEvent('app-state-update'));
       }
     } catch (err) {
       setHistory(prev => [...prev, 'Erreur fatale de connexion à l\'API.']);
@@ -130,6 +141,24 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
       setIsLoading(false);
     }
   };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const content = event.target?.result as string;
+      const lines = content.split('\n').filter(l => l.trim());
+      setHistory(prev => [...prev, `\n--- BATCH EXECUTION: ${file.name} ---`]);
+      for (const line of lines) {
+        await execCommand(line, true);
+      }
+      setHistory(prev => [...prev, `--- BATCH COMPLETED ---`]);
+    };
+    reader.readAsText(file);
+  };
+
+  const currentTheme = THEMES[theme];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,20 +180,24 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
           opacity: 1, 
           scale: 1, 
           y: 0,
-          height: isMinimized ? '44px' : '450px',
-          width: isMinimized ? '250px' : '650px'
+          height: isMinimized ? '44px' : '480px',
+          width: isMinimized ? '280px' : '700px'
         }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
-        className="fixed bottom-6 right-6 bg-[#0B1A2F]/95 backdrop-blur-md border border-[#1A2E47] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[1000] font-mono text-[11px]"
+        className={`fixed bottom-6 right-6 ${currentTheme.bg} backdrop-blur-md border border-[#1A2E47] rounded-xl shadow-2xl flex flex-col overflow-hidden z-[1000] font-mono text-[11px]`}
       >
         {/* Drag/Header */}
-        <div className="h-11 bg-[#0F213A] border-b border-[#1A2E47] flex items-center justify-between px-4 shrink-0 select-none">
+        <div className={`h-11 ${currentTheme.header} border-b border-[#1A2E47] flex items-center justify-between px-4 shrink-0 select-none`}>
           <div className="flex items-center gap-2">
             <Command size={14} className="text-blue-400" />
             <span className="text-gray-300 font-bold tracking-tight">api-control:souverain@shell</span>
             {isLoading && <Activity size={12} className="animate-pulse text-emerald-400 ml-2" />}
           </div>
           <div className="flex items-center gap-3">
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".txt" />
+            <button onClick={() => fileInputRef.current?.click()} className="text-gray-500 hover:text-white transition-colors" title="Batch Upload .txt">
+              <Sparkles size={14} />
+            </button>
             <button onClick={() => setIsMinimized(!isMinimized)} className="text-gray-500 hover:text-white cursor-pointer transition-colors">
               {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
             </button>
@@ -179,17 +212,15 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
             {/* History Canvas */}
             <div 
               ref={scrollRef}
-              className="flex-1 overflow-y-auto p-4 text-emerald-500/90 space-y-1.5 scrollbar-thin scrollbar-thumb-blue-900"
+              className={`flex-1 overflow-y-auto p-4 ${currentTheme.text} space-y-1.5 scrollbar-thin scrollbar-thumb-blue-900`}
             >
-              {history.map((line, i) => (
-                <pre key={i} className="whitespace-pre-wrap leading-relaxed">{line}</pre>
-              ))}
+              {history.map((line, i) => renderLine(line, i))}
               {isLoading && <div className="animate-pulse text-blue-400">Exécution de la requête API...</div>}
             </div>
 
             {/* Input Line */}
-            <form onSubmit={handleSubmit} className="p-3 bg-[#081324] border-t border-[#1A2E47] flex items-center gap-2">
-              <span className="text-blue-400 font-bold">reseller@hub:~$</span>
+            <form onSubmit={handleSubmit} className="p-3 bg-black/20 border-t border-[#1A2E47] flex items-center gap-2">
+              <span className={`${currentTheme.prompt}`}>reseller@hub:~$</span>
               <input 
                 ref={inputRef}
                 autoFocus

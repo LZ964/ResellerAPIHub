@@ -1,6 +1,6 @@
 {
   "name": "Paymenter Reseller Hub",
-  "description": "API REST et dashboard pour la revente de domaines, SSL et emails via Paymenter. Intégration WHMCS/Paymenter et Authentification Google/Locale.",
+  "description": "Console de revente API souveraine avec Agent IA assigné, sécurité 2FA, gestion de DNS, SSL et emails. Intégration CLI terminal et modules WHMCS.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

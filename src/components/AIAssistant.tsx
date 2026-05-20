@@ -66,8 +66,8 @@ export default function AIAssistant() {
             <Sparkles size={24} />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900 leading-none">Assistant IA ResellerHub</h2>
-            <p className="text-sm text-gray-500 mt-1">Votre partenaire pour la pérennité de votre entreprise</p>
+            <h2 className="text-xl font-bold text-gray-900 leading-none">Agent IA assigné</h2>
+            <p className="text-[11px] text-gray-500 mt-1.5 uppercase tracking-widest font-bold">Votre partenaire d'automatisation et de croissance</p>
           </div>
         </div>
         <button 

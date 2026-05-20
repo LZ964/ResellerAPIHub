@@ -5,7 +5,7 @@ import {
   updateProfile 
 } from 'firebase/auth';
 import { auth, loginWithGoogle } from '../lib/firebase';
-import { Mail, Lock, User, Chrome, ArrowRight, Loader2, TrendingUp } from 'lucide-react';
+import { Mail, Lock, User, Chrome, ArrowRight, Loader2, TrendingUp, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import toast from 'react-hot-toast';
 
@@ -13,17 +13,52 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [show2fa, setShow2fa] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const init2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/auth/2fa/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (res.ok) {
+        setShow2fa(true);
+        toast.success('Code 2FA envoyé (simulation terminal)');
+      } else {
+        throw new Error('Erreur generation 2FA');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyAndAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
+      const verifyRes = await fetch('/api/auth/2fa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: twoFactorCode })
+      });
+
+      if (!verifyRes.ok) {
+        throw new Error('Code 2FA invalide');
+      }
+
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
         toast.success('Bon retour !');
@@ -36,12 +71,7 @@ export default function Auth() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password, displayName })
         });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Erreur lors de la création du compte sur le serveur');
-        }
-
+        if (!response.ok) throw new Error('Erreur creation profil local');
         toast.success('Compte créé avec succès !');
       }
     } catch (err: any) {
@@ -101,58 +131,94 @@ export default function Auth() {
             )}
           </AnimatePresence>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-blue-600 text-gray-400">
-                  <User size={18} />
+          <form onSubmit={show2fa ? handleVerifyAndAuth : init2FA} className="space-y-4">
+            {!show2fa ? (
+              <>
+                {!isLogin && (
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-blue-600 text-gray-400">
+                      <User size={18} />
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nom complet"
+                      className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50/50 transition-all text-sm"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                    />
+                  </div>
+                )}
+                
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-blue-600 text-gray-400">
+                    <Mail size={18} />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    placeholder="Email"
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50/50 transition-all text-sm"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
-                <input
-                  type="text"
-                  required
-                  placeholder="Nom complet"
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50/50 transition-all text-sm"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                />
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-blue-600 text-gray-400">
+                    <Lock size={18} />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Mot de passe"
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50/50 transition-all text-sm"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="animate-in slide-in-from-bottom-2 duration-300">
+                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6 flex items-start gap-3">
+                  <ShieldAlert className="text-blue-600 shrink-0 w-5 h-5 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-bold text-blue-900">Vérification Requise</p>
+                    <p className="text-xs text-blue-700 mt-0.5">Entrez le code à 6 chiffres envoyé à {email}.</p>
+                  </div>
+                </div>
+
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-blue-600 text-gray-400">
+                    <Lock size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    placeholder="Code 2FA"
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50/50 transition-all text-sm tracking-[0.5em] font-bold text-center"
+                    value={twoFactorCode}
+                    onChange={(e) => setTwoFactorCode(e.target.value)}
+                  />
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setShow2fa(false)}
+                  className="w-full text-center mt-4 text-xs text-gray-400 hover:text-blue-600 transition-colors uppercase font-bold tracking-widest"
+                >
+                  Modifier les identifiants
+                </button>
               </div>
             )}
-            
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-blue-600 text-gray-400">
-                <Mail size={18} />
-              </div>
-              <input
-                type="email"
-                required
-                placeholder="Email"
-                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50/50 transition-all text-sm"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none group-focus-within:text-blue-600 text-gray-400">
-                <Lock size={18} />
-              </div>
-              <input
-                type="password"
-                required
-                placeholder="Mot de passe"
-                className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-gray-50/50 transition-all text-sm"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
 
             <button
               disabled={loading}
-              className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-100"
+              className="w-full bg-blue-600 text-white font-semibold py-3 rounded-xl hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-100 mt-6"
             >
               {loading ? <Loader2 className="animate-spin" size={20} /> : (
                 <>
-                  {isLogin ? 'Se connecter' : 'S\'inscrire'}
+                  {show2fa ? 'Vérifier & Continuer' : (isLogin ? 'Se connecter' : 'S\'inscrire')}
                   <ArrowRight size={18} />
                 </>
               )}
