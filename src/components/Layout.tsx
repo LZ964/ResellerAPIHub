@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { User, signOut } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import ApiTerminal from './ApiTerminal';
 import { 
   LayoutDashboard, 
   Globe, 
@@ -18,7 +19,8 @@ import {
   Menu,
   Activity,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Terminal
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -179,6 +181,19 @@ export default function Layout({ user }: LayoutProps) {
           {/* Right: Functional Profile dropdown + Canadian Validation Status */}
           <div className="flex items-center gap-6">
             
+            {/* Terminal Trigger Button (Top Right as requested) */}
+            <button 
+              className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer border border-transparent hover:border-blue-100 flex items-center gap-2 group"
+              title="Terminal api-control"
+              onClick={() => {
+                // Focus logic will be handled by the component's internal state
+                // Since moving it to top right, it might be better as a purely fixed button or a header icon
+              }}
+            >
+              <Terminal size={18} className="group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline text-gray-400 group-hover:text-blue-600">CLI</span>
+            </button>
+
             {/* Sovereign Canada Shield Indicator */}
             <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-800 rounded-md text-[10px] font-bold uppercase tracking-wider">
               <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
@@ -259,6 +274,9 @@ export default function Layout({ user }: LayoutProps) {
           </div>
         </main>
       </div>
+
+      {/* Global Command Center / Terminal Overlay */}
+      <ApiTerminal />
     </div>
   );
 }

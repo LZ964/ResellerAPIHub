@@ -77,6 +77,32 @@ async function startServer() {
   app.use(cookieParser());
   app.use('/api/', limiter);
 
+  // --- Activity Logging Middleware ---
+  const logActivity = async (req: Request, action: string, details: any = {}) => {
+    try {
+      const log = {
+        timestamp: new Date(),
+        action,
+        uid: (req as any).user?.uid || 'anonymous',
+        email: (req as any).user?.email || 'anonymous',
+        ip: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+        userAgent: req.headers['user-agent'],
+        fingerprint: req.headers['x-fingerprint'] || 'unknown',
+        method: req.method,
+        path: req.path,
+        ...details
+      };
+      
+      if (db) {
+        await db.collection('activity_logs').add(log);
+      } else {
+        console.log('[Activity Log]', JSON.stringify(log));
+      }
+    } catch (err) {
+      console.error('[Logging Error]', err);
+    }
+  };
+
   // --- Authentication Middleware ---
   const authenticateUser = async (req: Request, res: Response, next: NextFunction) => {
     if (!auth) {
@@ -100,6 +126,15 @@ async function startServer() {
       res.status(401).json({ error: 'Session token invalid or expired' });
     }
   };
+
+  // Log connections
+  app.use(async (req, res, next) => {
+    if (req.path.startsWith('/api') && req.path !== '/api/logs') {
+      // Lazy log for sensitive actions will be manual, but let's track general API hit
+      // We don't log here yet to avoid clutter, will call manual logActivity in routes
+    }
+    next();
+  });
 
   // --- REST API ENDPOINTS ---
 
@@ -131,6 +166,8 @@ async function startServer() {
         });
       }
       
+      await logActivity(req, 'LOGIN_GOOGLE', { email: decodedToken.email });
+      
       res.json({ success: true, user: (await userRef.get()).data() });
     } catch (error) {
       next(error);
@@ -154,6 +191,8 @@ async function startServer() {
         role: 'reseller',
         createdAt: new Date(),
       });
+      
+      await logActivity(req, 'SIGNUP_LOCAL', { email });
       
       res.json({ success: true, uid: userRecord.uid });
     } catch (error) {
@@ -422,6 +461,9 @@ async function startServer() {
       if (db) {
         const userRef = db.collection('users').doc(uid);
         await userRef.set(updateData, { merge: true });
+        
+        await logActivity(req, 'UPDATE_PROFILE', { province: updateData.addressProvince });
+        
         const refreshed = await userRef.get();
         return res.json({ success: true, user: refreshed.data() });
       }
@@ -429,6 +471,65 @@ async function startServer() {
       res.json({ success: true, user: updateData });
     } catch (error) {
       next(error);
+    }
+  });
+
+  // --- ACTIVITY LOGS & TERMINAL API ---
+
+  // Get Activity Logs
+  app.get('/api/logs', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!db) return res.json([{ id: 'mock_1', action: 'DB_OFFLINE', timestamp: new Date() }]);
+      
+      const logs = await db.collection('activity_logs')
+        .orderBy('timestamp', 'desc')
+        .limit(50)
+        .get();
+      
+      res.json(logs.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Terminal Exec Proxy (api-control)
+  app.post('/api/terminal/exec', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { command, args } = req.body;
+      const uid = (req as any).user.uid;
+      
+      await logActivity(req, 'TERMINAL_CMD', { command, args });
+
+      if (command === 'register') {
+        const domain = args[0];
+        if (!domain) return res.json({ error: 'Usage: api-control register <domain.com>' });
+        const result = await paymenter.registerDomain(uid, domain, 12.99);
+        return res.json({ output: `Domaine ${domain} enregistré avec succès.`, data: result });
+      }
+
+      if (command === 'search') {
+        const query = args[0];
+        if (!query) return res.json({ error: 'Usage: api-control search <keyword>' });
+        const result = await paymenter.searchDomain(query);
+        return res.json({ output: `Résultats pour "${query}":`, data: result });
+      }
+
+      if (command === 'dns:add') {
+        const [domain, type, name, value] = args;
+        if (!domain || !type || !name || !value) return res.json({ error: 'Usage: api-control dns:add <domain> <type> <name> <value>' });
+        const result = await paymenter.addDnsRecord(uid, domain, { type, name, value, ttl: 3600 });
+        return res.json({ output: `Enregistrement DNS ajouté pour ${domain}.`, data: result });
+      }
+
+      if (command === 'help') {
+        return res.json({
+          output: `Commandes disponibles:\n  - register <domain>\n  - search <query>\n  - dns:add <domain> <type> <name> <value>\n  - profile:view\n  - logs:show`
+        });
+      }
+
+      res.status(404).json({ error: `Commande inconnue: ${command}. Tapez 'help' pour la liste.` });
+    } catch (error: any) {
+      res.json({ error: error.message || 'Erreur execution commande' });
     }
   });
 
@@ -521,10 +622,11 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     console.log('[Prod] Serving static files from dist...');
-    const distPath = path.join(process.cwd(), 'dist');
-    if (!fs.existsSync(distPath)) {
-      console.warn('[Prod] Warning: /dist directory not build-ready.');
-    }
+    // We use a path relative to the current file (dist/server.cjs)
+    // In production, server.cjs is in /dist, so the static files are in the same folder
+    const distPath = path.resolve(__dirname);
+    console.log(`[Prod] Resolved dist path: ${distPath}`);
+    
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
