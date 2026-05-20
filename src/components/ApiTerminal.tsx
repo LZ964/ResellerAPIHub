@@ -88,7 +88,9 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
 
     if (!isBatch) setHistory(prev => [...prev, `\n> ${fullCommand}`]);
 
-    if (base === 'theme') {
+    const baseLower = base.toLowerCase();
+
+    if (baseLower === 'theme') {
       const newTheme = args[0] as keyof typeof THEMES;
       if (THEMES[newTheme]) {
         setTheme(newTheme);
@@ -99,13 +101,26 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
       return;
     }
 
-    if (base !== 'api-control') {
-      if (base === 'clear') { setHistory([]); return; }
-      if (base === 'help' || base === '?') {
-        setHistory(prev => [...prev, 'Utilisez "api-control <command>" ou "theme <name>".', 'Tapez "api-control help" pour la liste des commandes API.']);
-        return;
-      }
-      setHistory(prev => [...prev, `Commande non reconnue: ${base}.`]);
+    if (baseLower === 'help' || baseLower === '?') {
+      setHistory(prev => [
+        ...prev, 
+        '--- CONSOLE D\'AIDE ---',
+        'Commandes Globales:',
+        '  api-control <cmd>   - Commandes d\'infrastructure (voir "api-control help")',
+        '  theme <nom>         - Change l\'apparence (classic, gnome, matrix, solarized)',
+        '  clear               - Efface l\'historique',
+        '  help                - Affiche ce message'
+      ]);
+      return;
+    }
+
+    if (baseLower === 'clear') {
+      setHistory(['Sovereign Cloud Console [Version 3.4.2]', 'Effacé.']);
+      return;
+    }
+
+    if (baseLower !== 'api-control') {
+      setHistory(prev => [...prev, `Commande non reconnue: ${base}. Tapez "help" pour l'assistance.`]);
       return;
     }
 
@@ -225,10 +240,12 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
             {/* History Canvas */}
             <div 
               ref={scrollRef}
-              className={`flex-1 overflow-y-auto p-4 ${currentTheme.text} space-y-1.5 scrollbar-thin scrollbar-thumb-blue-900`}
+              className={`flex-1 overflow-y-auto p-4 ${currentTheme.text} space-y-1.5 scrollbar-thin scrollbar-thumb-blue-900 selection:bg-blue-500/30`}
             >
-              {history.map((line, i) => renderLine(line, i))}
-              {isLoading && <div className="animate-pulse text-blue-400">Exécution de la requête API...</div>}
+              <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {history.map((line, i) => renderLine(line, i))}
+              </div>
+              {isLoading && <div className="animate-pulse text-blue-400 mt-2">Exécution de la requête API...</div>}
             </div>
 
             {/* Input Line */}

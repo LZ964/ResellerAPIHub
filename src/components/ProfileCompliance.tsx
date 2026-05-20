@@ -13,7 +13,12 @@ import {
   Plus,
   Trash2,
   Mail,
-  ShieldAlert
+  ShieldAlert,
+  Wallet,
+  CreditCard,
+  History,
+  TrendingUp,
+  DollarSign
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { auth } from '../lib/firebase';
@@ -54,17 +59,21 @@ export default function ProfileCompliance() {
   });
 
   const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [balance, setBalance] = useState(0);
+  const [depositAmount, setDepositAmount] = useState<number>(50);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [funding, setFunding] = useState(false);
   const [generatingKey, setGeneratingKey] = useState(false);
 
   useEffect(() => {
     async function loadData() {
       try {
         const token = await auth.currentUser?.getIdToken();
-        const [profRes, keysRes] = await Promise.all([
+        const [profRes, keysRes, balRes] = await Promise.all([
           fetch('/api/profile', { headers: { 'Authorization': `Bearer ${token}` } }),
-          fetch('/api/keys', { headers: { 'Authorization': `Bearer ${token}` } })
+          fetch('/api/keys', { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch('/api/billing/balance', { headers: { 'Authorization': `Bearer ${token}` } })
         ]);
 
         if (profRes.ok) {
@@ -72,6 +81,10 @@ export default function ProfileCompliance() {
           setProfile(prev => ({ ...prev, ...profData }));
         }
         if (keysRes.ok) setKeys(await keysRes.json());
+        if (balRes.ok) {
+          const b = await balRes.json();
+          setBalance(b.balance);
+        }
       } catch (err) {
         toast.error("Erreur de chargement");
       } finally {
@@ -84,6 +97,39 @@ export default function ProfileCompliance() {
     window.addEventListener('app-state-update', handleUpdate);
     return () => window.removeEventListener('app-state-update', handleUpdate);
   }, []);
+
+  const handleDeposit = async () => {
+    if (depositAmount < 50) {
+      toast.error("Le dépôt minimum est de 50.00$");
+      return;
+    }
+    setFunding(true);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/billing/deposit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ amount: depositAmount, method: 'credit_card' })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBalance(data.balance);
+        toast.success(`Dépôt de ${depositAmount}$ réussi !`);
+        setDepositAmount(50);
+        window.dispatchEvent(new CustomEvent('app-state-update'));
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Échec du dépôt");
+      }
+    } catch (err) {
+      toast.error("Connexion serveur perdue");
+    } finally {
+      setFunding(false);
+    }
+  };
 
   const handleCreateKey = async () => {
     setGeneratingKey(true);
@@ -375,6 +421,52 @@ export default function ProfileCompliance() {
 
         {/* Right column */}
         <div className="space-y-6">
+          {/* Billing Card */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-6">
+            <div className="flex items-center gap-3 border-b border-gray-50 pb-4">
+              <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                <Wallet size={20} />
+              </div>
+              <h3 className="font-bold text-gray-900 text-sm">Gestion du Solde</h3>
+            </div>
+
+            <div className="bg-gray-900 p-6 rounded-2xl text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <TrendingUp size={60} />
+              </div>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Solde Actuel</p>
+              <h2 className="text-3xl font-black tracking-tighter">
+                {balance.toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              <div className="relative">
+                < DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                <input 
+                  type="number"
+                  min="50"
+                  step="10"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl pl-9 pr-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-bold"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(Number(e.target.value))}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleDeposit}
+                disabled={funding}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl text-xs font-bold hover:bg-gray-800 transition-all disabled:opacity-50"
+              >
+                {funding ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
+                Alimenter le Compte
+              </button>
+              <p className="text-[9px] text-center text-gray-400 font-medium">
+                Dépôt minimum de 50.00$ requis pour les opérations API.
+              </p>
+            </div>
+          </div>
+
           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-5 sticky top-6">
             <h3 className="font-bold text-gray-900 text-sm">Action de Validation</h3>
             <p className="text-gray-400 text-[11px] leading-relaxed">

@@ -67,6 +67,25 @@ const aiAgentSchema = z.object({
   })).optional(),
 });
 
+const profileUpdateSchema = z.object({
+  legalBusinessStatus: z.string().optional(),
+  legalRepresentativeName: z.string().min(2).max(100).optional(),
+  legalRepresentativeEmail: z.string().email().optional(),
+  addressStreet: z.string().optional(),
+  addressCity: z.string().optional(),
+  addressProvince: z.string().optional(),
+  addressPostalCode: z.string().optional(),
+  taxId: z.string().optional(),
+  country: z.string().optional(),
+  email2fa: z.string().email().optional(),
+  displayName: z.string().optional(),
+});
+
+const depositSchema = z.object({
+  amount: z.number().min(50, 'Un dépôt minimum de 50$ est requis pour l\'activation API'),
+  method: z.enum(['credit_card', 'bank_transfer', 'crypto']).default('credit_card'),
+});
+
 // --- Rate Limiting ---
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -365,7 +384,23 @@ async function startServer() {
     try {
       const uid = (req as any).user.uid;
       const { domain, price } = req.body;
-      const data = await paymenter.registerDomain(uid, domain, Number(price || 12.99));
+      const cost = Number(price || 12.99);
+
+      if (db) {
+        const userRef = db.collection('users').doc(uid);
+        const userDoc = await userRef.get();
+        const balance = userDoc.data()?.balance || 0;
+
+        if (balance < cost) {
+          return res.status(402).json({ error: 'Solde insuffisant pour cette opération. Solde actuel: ' + balance + '$' });
+        }
+
+        // Deduct balance
+        await userRef.update({ balance: balance - cost });
+        await logActivity(req, 'TRANSACTION_DEBIT', { item: 'Domain: ' + domain, amount: cost });
+      }
+
+      const data = await paymenter.registerDomain(uid, domain, cost);
       res.json(data);
     } catch (error) {
       next(error);
@@ -594,7 +629,7 @@ async function startServer() {
   app.post('/api/profile', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const uid = (req as any).user.uid;
-      const updateData = req.body;
+      const updateData = profileUpdateSchema.parse(req.body);
 
       if (db) {
         const userRef = db.collection('users').doc(uid);
@@ -607,6 +642,40 @@ async function startServer() {
       }
 
       res.json({ success: true, user: updateData });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // --- BILLING & FUNDS MANAGEMENT ---
+
+  // Get Billing Balance
+  app.get('/api/billing/balance', authenticateUser, async (req: Request, res: Response) => {
+    const uid = (req as any).user.uid;
+    if (!db) return res.json({ balance: 0 });
+    const userDoc = await db.collection('users').doc(uid).get();
+    res.json({ balance: userDoc.data()?.balance || 0 });
+  });
+
+  // Make Deposit
+  app.post('/api/billing/deposit', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const uid = (req as any).user.uid;
+      const { amount, method } = depositSchema.parse(req.body);
+
+      if (db) {
+        const userRef = db.collection('users').doc(uid);
+        const userDoc = await userRef.get();
+        const currentBalance = userDoc.data()?.balance || 0;
+        
+        const newBalance = currentBalance + amount;
+        await userRef.set({ balance: newBalance }, { merge: true });
+        
+        await logActivity(req, 'BILLING_DEPOSIT', { amount, method });
+        return res.json({ success: true, balance: newBalance });
+      }
+      
+      res.json({ success: true, balance: amount });
     } catch (error) {
       next(error);
     }
@@ -686,7 +755,35 @@ async function startServer() {
           const userDoc = db ? await db.collection('users').doc(uid).get() : null;
           const role = userDoc?.data()?.role || 'Reseller';
           const email = (req as any).user.email;
-          return res.json({ output: `IDENTITY REPORT\n---------------\nUtilisateur: ${email}\nUID: ${uid}\nRole: ${role}\nAuth: Verified\nRegion: Global Access` });
+          const balance = userDoc?.data()?.balance || 0;
+          return res.json({ 
+            output: `IDENTITY REPORT\n---------------\nUtilisateur: ${email}\nUID: ${uid}\nRole: ${role}\nSolde: ${balance}$\nAuth: Verified\nRegion: Global Access` 
+          });
+        }
+        case 'profile:update': {
+          const [key, ...valueParts] = args;
+          const value = valueParts.join(' ');
+          if (!key || !value) return res.json({ error: 'Usage: api-control profile:update <field> <value>' });
+          
+          if (db) {
+            const userRef = db.collection('users').doc(uid);
+            await userRef.set({ [key]: value }, { merge: true });
+            return res.json({ output: `Profil mis à jour: ${key} = ${value}` });
+          }
+          return res.json({ output: 'Simulation: Profil mis à jour localement.' });
+        }
+        case 'billing:credit': {
+          const amount = Number(args[0]);
+          if (isNaN(amount) || amount <= 0) return res.json({ error: 'Usage: api-control billing:credit <montant>' });
+          
+          if (db) {
+            const userRef = db.collection('users').doc(uid);
+            const userDoc = await userRef.get();
+            const newBal = (userDoc.data()?.balance || 0) + amount;
+            await userRef.update({ balance: newBal });
+            return res.json({ output: `Compte crédité de ${amount}$. Nouveau solde: ${newBal}$` });
+          }
+          return res.json({ output: `Simulation: Compte crédité de ${amount}$` });
         }
         case 'logs:show': {
           if (!db) return res.json({ output: "Logging local (Offline Mode): Aucun log persistant." });
@@ -775,6 +872,8 @@ async function startServer() {
                     `  dig <domain>              - Teste les enregistrements A (DNS Lookup)\n` +
                     `  whois <domain>            - Affiche les informations WHOIS\n` +
                     `  check-install whmcs <dom> - Vérifie une installation externe\n` +
+                    `  profile:update <key> <v>  - Met à jour un champ du profil\n` +
+                    `  billing:credit <montant>  - Crédite le compte client\n` +
                     `  apikey:create [nom] [prm] - Génère une clef API d'accès\n` +
                     `  whoami                    - Affiche l'identité de session\n` +
                     `  logs:show                 - Liste l'activité récente (API & CLI)`
