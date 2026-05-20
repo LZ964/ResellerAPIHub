@@ -58,7 +58,7 @@ const limiter = rateLimit({
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // Security Headers
   console.log('[Middleware] Configuring helmet...');
@@ -611,8 +611,13 @@ async function startServer() {
     res.status(status).json({ error: msg });
   });
 
-  // --- Vite & Production static file server ---
-  if (process.env.NODE_ENV !== 'production') {
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VITE_PROD === 'true';
+  // PORT is already defined at the top of startServer
+
+  // --- Health Check ---
+  app.get('/health', (req, res) => res.json({ status: 'ok', environment: isProd ? 'production' : 'development' }));
+
+  if (!isProd) {
     console.log('[Dev] Starting Vite in middleware mode...');
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -621,21 +626,36 @@ async function startServer() {
     console.log('[Dev] Mounting Vite middleware.');
     app.use(vite.middlewares);
   } else {
-    console.log('[Prod] Serving static files from dist...');
-    // We use a path relative to the current file (dist/server.cjs)
-    // In production, server.cjs is in /dist, so the static files are in the same folder
+    // In production, server.cjs is in /dist
+    // __dirname will be the absolute path to /dist
     const distPath = path.resolve(__dirname);
-    console.log(`[Prod] Resolved dist path: ${distPath}`);
+    console.log(`[Prod] Serving static files from: ${distPath}`);
     
+    // Serve static assets first
     app.use(express.static(distPath));
+    
+    // Fallback for SPA routing
     app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        // Fallback to project root if somehow run from there
+        const fallbackPath = path.join(process.cwd(), 'dist', 'index.html');
+        if (fs.existsSync(fallbackPath)) {
+          res.sendFile(fallbackPath);
+        } else {
+          console.error(`[Error] index.html not found! Checked: ${indexPath} and ${fallbackPath}`);
+          res.status(404).send('Application build missing index.html. Check deployment logs.');
+        }
+      }
     });
   }
 
   console.log(`[Bootstrap] Binding to 0.0.0.0:${PORT}...`);
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Status] Server successfully running at http://0.0.0.0:${PORT}`);
+    console.log(`[Status] NODE_ENV: ${process.env.NODE_ENV}`);
   });
 }
 

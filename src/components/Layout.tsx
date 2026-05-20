@@ -37,6 +37,7 @@ export default function Layout({ user }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [terminalOpen, setTerminalOpen] = useState(false);
   const [profile, setProfile] = useState<any>({
     legalBusinessStatus: 'individual',
     canadianPresenceDeclared: true,
@@ -185,10 +186,7 @@ export default function Layout({ user }: LayoutProps) {
             <button 
               className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer border border-transparent hover:border-blue-100 flex items-center gap-2 group"
               title="Terminal api-control"
-              onClick={() => {
-                // Focus logic will be handled by the component's internal state
-                // Since moving it to top right, it might be better as a purely fixed button or a header icon
-              }}
+              onClick={() => setTerminalOpen(!terminalOpen)}
             >
               <Terminal size={18} className="group-hover:scale-110 transition-transform" />
               <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline text-gray-400 group-hover:text-blue-600">CLI</span>
@@ -276,7 +274,11 @@ export default function Layout({ user }: LayoutProps) {
       </div>
 
       {/* Global Command Center / Terminal Overlay */}
-      <ApiTerminal />
+      <ApiTerminal 
+        isOpen={terminalOpen} 
+        onOpen={() => setTerminalOpen(true)} 
+        onClose={() => setTerminalOpen(false)} 
+      />
     </div>
   );
 }

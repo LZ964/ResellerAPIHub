@@ -13,8 +13,13 @@ interface LogEntry {
   email: string;
 }
 
-export default function ApiTerminal() {
-  const [isOpen, setIsOpen] = useState(false);
+interface ApiTerminalProps {
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+}
+
+export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [history, setHistory] = useState<string[]>(['Sovereign Cloud Console [Version 3.4.1]', '(c) 2026 ResellerHub Canada. Tous droits réservés.', 'Tapez "help" pour voir les commandes "api-control".']);
   const [input, setInput] = useState('');
@@ -22,6 +27,22 @@ export default function ApiTerminal() {
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Simple fingerprint generation
+  const getFingerprint = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return 'standard_client_v1';
+    ctx.textBaseline = "top";
+    ctx.font = "14px 'Arial'";
+    ctx.fillStyle = "#f60";
+    ctx.fillRect(125,1,62,20);
+    ctx.fillStyle = "#069";
+    ctx.fillText("reseller_hub_v3", 2, 15);
+    ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+    ctx.fillText("reseller_hub_v3", 4, 17);
+    return btoa(canvas.toDataURL()).slice(-20);
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -77,7 +98,7 @@ export default function ApiTerminal() {
 
     if (cmd === 'whoami') {
       const user = auth.currentUser;
-      setHistory(prev => [...prev, `ID Utilisateur: ${user?.uid}`, `Email: ${user?.email}`, `Status: AUTHENTICATED_PRIVILEGED`]);
+      setHistory(prev => [...prev, `ID Utilisateur: ${user?.uid}`, `Email: ${user?.email}`, `Status: AUTHENTICATED_PRIVILEGED`, `Fingerprint: ${getFingerprint()}`]);
       return;
     }
 
@@ -90,7 +111,7 @@ export default function ApiTerminal() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'x-fingerprint': 'browser_v3_local' // Simplified for demo
+          'x-fingerprint': getFingerprint()
         },
         body: JSON.stringify({ command: cmd, args })
       });
@@ -119,15 +140,7 @@ export default function ApiTerminal() {
   };
 
   if (!isOpen) {
-    return (
-      <button 
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 p-4 bg-[#0F213A] text-blue-400 rounded-full shadow-2xl border border-blue-900/50 hover:scale-110 transition-transform cursor-pointer z-[100]"
-        title="Ouvrir le Terminal api-control"
-      >
-        <Terminal size={24} />
-      </button>
-    );
+    return null;
   }
 
   return (
@@ -155,7 +168,7 @@ export default function ApiTerminal() {
             <button onClick={() => setIsMinimized(!isMinimized)} className="text-gray-500 hover:text-white cursor-pointer transition-colors">
               {isMinimized ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
             </button>
-            <button onClick={() => setIsOpen(false)} className="text-gray-500 hover:text-red-400 cursor-pointer transition-colors">
+            <button onClick={onClose} className="text-gray-500 hover:text-red-400 cursor-pointer transition-colors">
               <X size={14} />
             </button>
           </div>
