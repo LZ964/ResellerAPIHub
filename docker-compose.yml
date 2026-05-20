@@ -1,0 +1,55 @@
+services:
+  # Votre API et Dashboard de revente
+  reseller-hub:
+    build: .
+    container_name: reseller-hub
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - paymenter
+    networks:
+      - reseller-network
+
+  # Instance officielle de Paymenter
+  paymenter:
+    image: ghcr.io/paymenter/paymenter:latest
+    container_name: paymenter
+    ports:
+      - "8080:80"
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=paymenter_db
+      - DB_PORT=3306
+      - DB_DATABASE=paymenter
+      - DB_USERNAME=paymenter
+      - DB_PASSWORD=paymenter_password
+      - APP_URL=http://localhost:8080
+      - APP_ENV=production
+      - APP_KEY=base64:$(openssl rand -base64 32)
+    depends_on:
+      - paymenter_db
+    networks:
+      - reseller-network
+
+  # Base de données pour Paymenter
+  paymenter_db:
+    image: mariadb:10
+    container_name: paymenter_db
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=paymenter
+      - MYSQL_USER=paymenter
+      - MYSQL_PASSWORD=paymenter_password
+    volumes:
+      - paymenter_data:/var/lib/mysql
+    networks:
+      - reseller-network
+
+networks:
+  reseller-network:
+    driver: bridge
+
+volumes:
+  paymenter_data:

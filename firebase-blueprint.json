@@ -1,0 +1,99 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user information plus Canadian corporate legal compliance fields",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "reseller"] },
+        "paymenterApiKey": { "type": "string" },
+        "legalBusinessStatus": { "type": "string" },
+        "provincialRegistryNumber": { "type": "string" },
+        "gstHstNumber": { "type": "string" },
+        "qstNumber": { "type": "string" },
+        "provinceJurisdiction": { "type": "string" },
+        "canadianPresenceDeclared": { "type": "boolean" },
+        "legalRepresentativeName": { "type": "string" },
+        "legalRepresentativeEmail": { "type": "string" },
+        "addressStreet": { "type": "string" },
+        "addressCity": { "type": "string" },
+        "addressProvince": { "type": "string" },
+        "addressPostalCode": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Log of a reseller purchase",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "productType": { "type": "string", "enum": ["domain", "ssl", "email"] },
+        "domainName": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "paymenterOrderId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "productType", "amount", "status", "createdAt"]
+    },
+    "Domain": {
+      "title": "Domain",
+      "description": "Information about a registered domain hosted on our network.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "domainName": { "type": "string" },
+        "price": { "type": "number" },
+        "dnsRecords": {
+          "type": "array",
+          "description": "List of DNS zone entries"
+        },
+        "sslPlanId": { "type": "string" },
+        "sslStatus": { "type": "string", "enum": ["none", "pending", "issued"] },
+        "sslProvider": { "type": "string" },
+        "sslIssuedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "domainName", "price", "createdAt"]
+    },
+    "Mailbox": {
+      "title": "Mailbox",
+      "description": "A professional email address created in our hosting layer.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "domainName": { "type": "string" },
+        "localPart": { "type": "string" },
+        "emailAddress": { "type": "string" },
+        "password": { "type": "string" },
+        "planId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "domainName", "localPart", "emailAddress", "password", "planId", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and roles"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Reseller transaction logs"
+    },
+    "/domains/{domainName}": {
+      "schema": "Domain",
+      "description": "Registered domain DNS and SSL configurations"
+    },
+    "/mailboxes/{mailboxId}": {
+      "schema": "Mailbox",
+      "description": "Created email address list"
+    }
+  }
+}
