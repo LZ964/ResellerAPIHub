@@ -142,22 +142,6 @@ export default function ProfileCompliance() {
     }
   };
 
-  const provinces = [
-    { code: 'QC', name: 'Québec' },
-    { code: 'ON', name: 'Ontario' },
-    { code: 'BC', name: 'Colombie-Britannique' },
-    { code: 'AB', name: 'Alberta' },
-    { code: 'NS', name: 'Nouvelle-Écosse' },
-    { code: 'NB', name: 'Nouveau-Brunswick' },
-    { code: 'MB', name: 'Manitoba' },
-    { code: 'PE', name: 'Île-du-Prince-Édouard' },
-    { code: 'SK', name: 'Saskatchewan' },
-    { code: 'NL', name: 'Terre-Neuve-et-Labrador' },
-    { code: 'YT', name: 'Yukon' },
-    { code: 'NT', name: 'Territoires du Nord-Ouest' },
-    { code: 'NU', name: 'Nunavut' }
-  ];
-
   if (loading) {
     return (
       <div className="h-[60vh] flex items-center justify-center">
@@ -329,7 +313,7 @@ export default function ProfileCompliance() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Courriel Principal</label>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Courriel Contact</label>
                 <input
                   type="email"
                   required
@@ -337,6 +321,52 @@ export default function ProfileCompliance() {
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
                   value={profile.legalRepresentativeEmail}
                   onChange={(e) => setProfile({ ...profile, legalRepresentativeEmail: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Adresse</label>
+                <input
+                  type="text"
+                  placeholder="123 Rue de la Technologie"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+                  value={profile.addressStreet}
+                  onChange={(e) => setProfile({ ...profile, addressStreet: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Ville</label>
+                <input
+                  type="text"
+                  placeholder="Lumière"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+                  value={profile.addressCity}
+                  onChange={(e) => setProfile({ ...profile, addressCity: e.target.value })}
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Code Postal</label>
+                <input
+                  type="text"
+                  placeholder="75001"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+                  value={profile.addressPostalCode}
+                  onChange={(e) => setProfile({ ...profile, addressPostalCode: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">ID Fiscal / No Entreprise</label>
+                <input
+                  type="text"
+                  placeholder="EX: 12345678"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+                  value={profile.taxId}
+                  onChange={(e) => setProfile({ ...profile, taxId: e.target.value })}
                 />
               </div>
             </div>

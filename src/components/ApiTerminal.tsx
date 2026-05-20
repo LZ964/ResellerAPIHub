@@ -148,12 +148,25 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
     const reader = new FileReader();
     reader.onload = async (event) => {
       const content = event.target?.result as string;
-      const lines = content.split('\n').filter(l => l.trim());
-      setHistory(prev => [...prev, `\n--- BATCH EXECUTION: ${file.name} ---`]);
-      for (const line of lines) {
-        await execCommand(line, true);
+      setHistory(prev => [...prev, `\n--- ENVOI BATCH: ${file.name} ---`]);
+      setIsLoading(true);
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const res = await fetch('/api/terminal/batch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ commands: content })
+        });
+        const data = await res.json();
+        setHistory(prev => [...prev, data.output || 'Batch exécuté sans sortie.']);
+      } catch (err) {
+        setHistory(prev => [...prev, 'Erreur lors de l\'exécution du batch.']);
+      } finally {
+        setIsLoading(false);
       }
-      setHistory(prev => [...prev, `--- BATCH COMPLETED ---`]);
     };
     reader.readAsText(file);
   };

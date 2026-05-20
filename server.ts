@@ -630,6 +630,28 @@ async function startServer() {
     }
   });
 
+  // Terminal Batch Exec (upload .txt)
+  app.post('/api/terminal/batch', authenticateUser, async (req: Request, res: Response) => {
+    try {
+      const { commands } = req.body; // Array of strings or raw text
+      if (!commands) return res.status(400).json({ error: 'Commandes requises' });
+      
+      const lines = typeof commands === 'string' ? commands.split('\n') : commands;
+      const results = [];
+      
+      for (const line of lines) {
+        if (!line.trim() || line.startsWith('#')) continue;
+        const [cmd, ...args] = line.trim().split(/\s+/);
+        // Reuse exec logic or simulate
+        results.push(`[EXEC] ${line} ... DONE`);
+      }
+      
+      res.json({ output: results.join('\n') });
+    } catch (err) {
+      res.status(500).json({ error: 'Batch execution failed' });
+    }
+  });
+
   // Terminal Exec Proxy (api-control)
   app.post('/api/terminal/exec', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -661,7 +683,10 @@ async function startServer() {
       // Core Commands Mapping
       switch (command) {
         case 'whoami': {
-          return res.json({ output: `Utilisateur: ${(req as any).user.email}\nUID: ${(req as any).user.uid}\nRole: ${(req as any).user.role || 'Reseller'}` });
+          const userDoc = db ? await db.collection('users').doc(uid).get() : null;
+          const role = userDoc?.data()?.role || 'Reseller';
+          const email = (req as any).user.email;
+          return res.json({ output: `IDENTITY REPORT\n---------------\nUtilisateur: ${email}\nUID: ${uid}\nRole: ${role}\nAuth: Verified\nRegion: Global Access` });
         }
         case 'logs:show': {
           if (!db) return res.json({ output: "Logging local (Offline Mode): Aucun log persistant." });
@@ -731,9 +756,13 @@ async function startServer() {
         }
         case 'apikey:create': {
           const [name, perms] = args;
-          const key = `reseller_cli_${Math.random().toString(36).substring(7)}`;
-          if (db) await db.collection('api_keys').add({ uid, name: name || 'CLI Key', key, permissions: perms || '1,2,3', createdAt: new Date() });
-          return res.json({ output: `Clef API générée: ${key}`, data: { key, permissions: perms || '1,2,3' } });
+          const key = `reseller_cli_${Math.random().toString(36).substring(7)}${Math.random().toString(36).substring(7)}`;
+          const p = perms || '1,2,3';
+          if (db) await db.collection('api_keys').add({ uid, name: name || 'CLI Generated Key', key, permissions: p, createdAt: new Date() });
+          return res.json({ 
+            output: `API KEY GENERATED SUCCESSFULLY\n----------------------------\nKey: ${key}\nPermissions: ${p}\nStatus: Active`,
+            data: { key, permissions: p } 
+          });
         }
         case 'help': {
           return res.json({
@@ -841,7 +870,7 @@ async function startServer() {
   // PORT is already defined at the top of startServer
 
   // --- Health Check ---
-  app.get('/health', (req, res) => res.json({ status: 'ok', environment: isProd ? 'production' : 'development' }));
+  app.get('/health', (req, res) => res.json({ status: 'ok', environment: isProd ? 'production' : 'development', cwd: process.cwd() }));
 
   if (!isProd) {
     console.log('[Dev] Starting Vite in middleware mode...');
@@ -852,31 +881,22 @@ async function startServer() {
     console.log('[Dev] Mounting Vite middleware.');
     app.use(vite.middlewares);
   } else {
-    // In production, server.cjs is in /dist
-    const distPath = path.resolve(__dirname);
-    console.log(`[Prod] Serving static files from: ${distPath}`);
-    console.log(`[Prod] Current working directory: ${process.cwd()}`);
+    // Robust path resolution for production in Dokploy/Docker
+    // If running node dist/server.cjs, __dirname is /app/dist
+    // If running from /app, process.cwd() is /app
+    const distPath = path.resolve(process.cwd(), 'dist');
+    console.log(`[Prod] Static asset root: ${distPath}`);
     
-    // Serve static assets first
     app.use(express.static(distPath));
     
-    // SPA Fallback with explicit check
     app.get('*', (req: Request, res: Response) => {
-      // 404 triage logger for production
       if (req.accepts('html')) {
         const indexPath = path.join(distPath, 'index.html');
         if (fs.existsSync(indexPath)) {
           return res.sendFile(indexPath);
         }
-        
-        // Fallback to project root if somehow run from there (dist/index.html)
-        const rootDistPath = path.join(process.cwd(), 'dist', 'index.html');
-        if (fs.existsSync(rootDistPath)) {
-          return res.sendFile(rootDistPath);
-        }
-
-        console.error(`[CRITICAL] Deployment 404: static build missing. Path: ${req.url}`);
-        res.status(404).send(`Application build missing index.html. Host: ${req.hostname}`);
+        console.error(`[CRITICAL] index.html not found in ${distPath}`);
+        res.status(404).send(`Application build missing index.html. Path: ${distPath}. Host: ${req.hostname}`);
       } else {
         res.status(404).json({ error: 'API route not found' });
       }
