@@ -134,6 +134,70 @@ export default function Documentation() {
       )
     },
     {
+      id: 'console-nav',
+      title: 'Console & Navigation',
+      icon: Globe,
+      content: (
+        <div className="space-y-8">
+          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+            <h3 className="font-black text-gray-900 uppercase italic tracking-tighter text-lg mb-4">Maitriser la Console HUB</h3>
+            <p className="text-gray-500 text-sm leading-relaxed mb-6">
+              L'interface est divisée en zones critiques pour une gestion sans friction de vos ressources cloud.
+            </p>
+            
+            <div className="space-y-6">
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">1</div>
+                <div>
+                  <h4 className="font-bold text-gray-900 text-xs mb-1">Navigation Latérale</h4>
+                  <p className="text-[10px] text-gray-500">Accès rapide aux domaines, certificats SSL, et messagerie pro. Chaque section permet des actions groupées.</p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">2</div>
+                <div>
+                  <h4 className="font-bold text-gray-900 text-xs mb-1">Actions Rapides (Header)</h4>
+                  <p className="text-[10px] text-gray-500">Utilisez le bouton "CLI Shell" pour les opérations de bas niveau ou le "Brainstorm" pour générer des idées de business via IA.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'billing-details',
+      title: 'Facturation & Fonds',
+      icon: Wallet,
+      content: (
+        <div className="space-y-8">
+          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+             <div className="flex items-center gap-4 mb-6">
+               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                 <Wallet size={24} />
+               </div>
+               <h3 className="font-black text-gray-900 uppercase italic tracking-tighter text-lg">Gestion du Capital</h3>
+             </div>
+             
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <h4 className="text-[11px] font-black uppercase text-gray-400">Le Seuil des 50.00$</h4>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Pour activer les fonctionnalités avancées, un solde minimal de 50.00$ est requis. C'est une mesure de sécurité préventive.
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  <h4 className="text-[11px] font-black uppercase text-gray-400">Paiements Stripe</h4>
+                  <p className="text-xs text-gray-600 leading-relaxed">
+                    Tous les fonds sont traités via Stripe. Une fois le paiement validé, votre solde HUB est crédité instantanément.
+                  </p>
+                </div>
+             </div>
+          </div>
+        </div>
+      )
+    },
+    {
       id: 'terminal',
       title: 'Admin CLI Dictionary',
       icon: Terminal,
@@ -187,6 +251,44 @@ export default function Documentation() {
                 </div>
               </section>
             </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'security-best-practices',
+      title: 'Sécurité & Hygiène',
+      icon: ShieldCheck,
+      content: (
+        <div className="space-y-8">
+          <div className="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm">
+             <h3 className="font-black text-gray-900 uppercase italic tracking-tighter text-lg mb-6">Protocole de Sécurité HUB</h3>
+             <div className="space-y-6">
+               <div className="p-6 bg-red-50 border border-red-100 rounded-2xl flex gap-6">
+                 <Lock className="text-red-600 shrink-0" size={24} />
+                 <div>
+                   <h4 className="font-bold text-red-900 text-sm mb-2 uppercase italic">Ne partagez jamais vos tokens</h4>
+                   <p className="text-xs text-red-700/70 leading-relaxed">
+                     Les clefs API générées via le terminal ou le profil sont des accès directs à votre capital. Utilisez des variables d'environnement (.env) pour les stocker dans vos applications externes.
+                   </p>
+                 </div>
+               </div>
+               
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="p-6 bg-blue-50 border border-blue-100 rounded-2xl">
+                   <h5 className="font-black text-blue-900 text-[10px] uppercase tracking-widest mb-3">Authentification 2FA</h5>
+                   <p className="text-xs text-blue-700 leading-relaxed">
+                     L'email de secours est utilisé pour chaque opération critique (achat de domaine &gt; 50$, suppression de mailbox). Gardez-le à jour dans votre profil.
+                   </p>
+                 </div>
+                 <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-2xl">
+                   <h5 className="font-black text-emerald-900 text-[10px] uppercase tracking-widest mb-3">Audit logs</h5>
+                   <p className="text-xs text-emerald-700 leading-relaxed">
+                     Vérifiez régulièrement vos logs d'activité. Chaque connexion IP et empreinte digitale de navigateur est enregistrée pour prévenir les accès frauduleux.
+                   </p>
+                 </div>
+               </div>
+             </div>
           </div>
         </div>
       )

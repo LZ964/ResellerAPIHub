@@ -253,13 +253,13 @@ export default function ApiTerminal({ isOpen, onOpen, onClose }: ApiTerminalProp
               {isLoading && <div className="animate-pulse text-blue-400 mt-2">Exécution de la requête API...</div>}
               
               {/* Inline Input Line */}
-              <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-4 pb-12">
-                <span className={`${currentTheme.prompt}`}>reseller@hub:~$</span>
+              <form onSubmit={handleSubmit} className="flex items-center gap-2 pt-2 border-t border-white/5 pb-20">
+                <span className={`${currentTheme.prompt} shrink-0`}>reseller@hub:~$</span>
                 <input 
                   ref={inputRef}
                   autoFocus
                   type="text"
-                  className="flex-1 bg-transparent border-none outline-none text-gray-200 p-0 m-0 focus:ring-0"
+                  className="flex-1 bg-transparent border-none outline-none text-emerald-400 p-0 m-0 focus:ring-0 font-mono caret-emerald-500"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder=""

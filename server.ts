@@ -95,8 +95,19 @@ const profileUpdateSchema = z.object({
   }).optional(),
 });
 
+const terminalExecSchema = z.object({
+  command: z.string().min(1).max(50),
+  args: z.array(z.string()).default([]),
+});
+
+const productOrderSchema = z.object({
+  domain: z.string().min(3).max(100),
+  planId: z.string().optional(),
+  price: z.number().optional(),
+});
+
 const depositSchema = z.object({
-  amount: z.number().min(5, 'Test amount allowed for demo'), // Lowered for demo ease if needed, but UI keeps 50
+  amount: z.number().min(5, 'Test amount allowed for demo'),
   method: z.enum(['credit_card', 'bank_transfer', 'crypto']).default('credit_card'),
 });
 
@@ -416,7 +427,7 @@ async function startServer() {
   app.post('/api/paymenter/domains/register', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const uid = (req as any).user.uid;
-      const { domain, price } = req.body;
+      const { domain, price } = productOrderSchema.parse(req.body);
       const cost = Number(price || 12.99);
 
       if (db) {
@@ -832,7 +843,7 @@ async function startServer() {
   // Terminal Exec Proxy (api-control)
   app.post('/api/terminal/exec', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { command, args } = req.body;
+      const { command, args } = terminalExecSchema.parse(req.body);
       const uid = (req as any).user.uid;
       
       // Process help flags
@@ -1169,16 +1180,11 @@ function resellerhub_RegisterDomain($params) {
     app.use(express.static(distPath));
     
     app.get('*', (req: Request, res: Response) => {
-      if (req.accepts('html')) {
-        const indexPath = path.join(distPath, 'index.html');
-        if (fs.existsSync(indexPath)) {
-          return res.sendFile(indexPath);
-        }
-        console.error(`[CRITICAL] index.html not found in ${distPath}`);
-        res.status(404).send(`Application build missing index.html. Path: ${distPath}. Host: ${req.hostname}`);
-      } else {
-        res.status(404).json({ error: 'API route not found' });
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
       }
+      res.status(404).send(`Application build missing index.html at ${indexPath}. Please ensure 'npm run build' was executed.`);
     });
   }
 
