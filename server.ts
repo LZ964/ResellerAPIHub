@@ -9,6 +9,15 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { Type } from '@google/genai';
+import Stripe from 'stripe';
+
+let stripe: Stripe | null = null;
+const getStripe = () => {
+  if (!stripe && process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  }
+  return stripe;
+};
 
 let __filename = '';
 let __dirname = '';
@@ -681,6 +690,47 @@ async function startServer() {
     }
   });
 
+  // Stripe Checkout Session
+  app.post('/api/billing/create-checkout-session', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const stripeClient = getStripe();
+      if (!stripeClient) {
+        // Fallback for demo if no key is provided
+        console.warn('[Stripe] STRIPE_SECRET_KEY not set. Using simulation mode.');
+        return res.json({ url: '/profile#billing?success=true&demo=true' });
+      }
+
+      const { amount } = req.body;
+      const session = await stripeClient.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'cad',
+              product_data: {
+                name: 'Apport de capital Sovereign HUB',
+                description: 'Dépôt de fonds pour services API et infrastructures',
+              },
+              unit_amount: Math.round(amount * 100),
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${process.env.APP_URL || 'http://localhost:3000'}/profile#billing?success=true&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.APP_URL || 'http://localhost:3000'}/profile#billing?canceled=true`,
+        metadata: {
+          uid: (req as any).user.uid,
+          amount: amount.toString(),
+        }
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // --- ACTIVITY LOGS & TERMINAL API ---
 
   // Get Activity Logs
@@ -947,6 +997,46 @@ async function startServer() {
     } catch (error) {
       next(error);
     }
+  });
+
+  // Clear AI Memory
+  app.delete('/api/ai/memory', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const uid = (req as any).user.uid;
+      await gemini.clearAgentMemory(uid);
+      res.json({ success: true, message: 'Mémoire de l\'agent réinitialisée.' });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // WHMCS Module Download
+  app.get('/api/whmcs/module', authenticateUser, async (req: Request, res: Response) => {
+    const moduleContent = `<?php
+/**
+ * ResellerHub WHMCS Registrar Module
+ * Version: 1.0.0
+ */
+function resellerhub_getConfigArray() {
+    return [
+        'FriendlyName' => ['Type' => 'System', 'Value' => 'ResellerHub API Gateway'],
+        'ApiKey' => ['Type' => 'password', 'Size' => '50', 'Description' => 'Enter your ResellerHub API Key'],
+        'TestMode' => ['Type' => 'yesno', 'Description' => 'Enable sandbox environment'],
+    ];
+}
+
+function resellerhub_RegisterDomain($params) {
+    // API Call to /api/paymenter/domains/register
+    return ['success' => true];
+}
+
+function resellerhub_GetNameservers($params) {
+    return ['ns1' => 'ns1.resellerhub.net', 'ns2' => 'ns2.resellerhub.net'];
+}
+?>`;
+    res.setHeader('Content-Type', 'application/x-httpd-php');
+    res.setHeader('Content-Disposition', 'attachment; filename=resellerhub_registrar.php');
+    res.send(moduleContent);
   });
 
   // --- Error Handling Middleware ---

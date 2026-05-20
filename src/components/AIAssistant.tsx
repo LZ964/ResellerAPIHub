@@ -17,6 +17,31 @@ export default function AIAssistant() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    async function loadHistory() {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const response = await fetch('/api/ai/agent', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ message: 'RELOAD_CONTEXT', history: [] }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // Filter out the internal RELOAD_CONTEXT message if it appears
+          const filtered = data.history.filter((m: any) => m.content !== 'RELOAD_CONTEXT' && m.parts?.[0]?.text !== 'RELOAD_CONTEXT');
+          setHistory(filtered);
+        }
+      } catch (err) {
+        console.warn("History reload failed");
+      }
+    }
+    loadHistory();
+  }, []);
+
+  useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -52,57 +77,57 @@ export default function AIAssistant() {
     }
   };
 
-  const clearHistory = () => {
-    setHistory([]);
-    toast.success('Conversation réinitialisée');
+  const clearHistory = async () => {
+    if (!confirm("Effacer définitivement la mémoire de l'IA ?")) return;
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      await fetch('/api/ai/memory', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      setHistory([]);
+      toast.success('Mémoire réinitialisée');
+    } catch (err) {
+      toast.error("Échec de la réinitialisation");
+    }
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)] max-w-4xl mx-auto bg-white rounded-3xl shadow-xl shadow-gray-100 border border-gray-100 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-10rem)] max-w-5xl mx-auto bg-[#050505] border border-gray-800 rounded-sm overflow-hidden font-mono shadow-2xl relative">
+      {/* Terminal CRT Overlay Effect */}
+      <div className="crt-overlay" />
+      <div className="crt-scanline" />
+      
       {/* Header */}
-      <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50">
+      <div className="px-6 py-3 border-b border-gray-800 flex items-center justify-between bg-black relative z-20">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-purple-600">
-            <Sparkles size={24} />
+          <div className="w-8 h-8 bg-oracle-red/10 rounded-sm border border-oracle-red/30 flex items-center justify-center text-oracle-red">
+            <Bot size={16} className="animate-pulse" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900 leading-none">Agent IA assigné</h2>
-            <p className="text-[11px] text-gray-500 mt-1.5 uppercase tracking-widest font-bold">Votre partenaire d'automatisation et de croissance</p>
+            <h2 className="text-[10px] font-black text-white leading-none tracking-[0.2em] uppercase italic">Neural_Link : Instance_Gate</h2>
+            <p className="text-[7px] text-gray-600 mt-1 uppercase tracking-widest font-black">Connection: Secure Protocol 2.4.0</p>
           </div>
         </div>
         <button 
           onClick={clearHistory}
-          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-          title="Nettoyer la conversation"
+          className="p-1.5 text-gray-800 hover:text-oracle-red hover:bg-oracle-red/10 rounded transition-all"
         >
-          <Trash2 size={20} />
+          <Trash2 size={14} />
         </button>
       </div>
 
-      {/* Chat Area */}
+      {/* Messages */}
       <div 
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth"
+        className="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-thin scrollbar-thumb-gray-900 selection:bg-oracle-red selection:text-white relative z-20"
       >
         {history.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-            <div className="w-20 h-20 rounded-3xl bg-gray-50 flex items-center justify-center text-gray-300">
-              <MessageSquare size={40} />
-            </div>
-            <div>
-              <p className="text-gray-900 font-bold text-lg">Comment puis-je vous aider aujourd'hui ?</p>
-              <p className="text-gray-500 max-w-sm mx-auto mt-2 text-sm leading-relaxed">
-                Posez-moi des questions sur les domaines, les emails professionels, ou demandez-moi de vérifier la disponibilité d'un nom.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 max-w-md w-full pt-4">
-              <button onClick={() => setInput("Vérifie si 'techvision.com' est disponible")} className="px-4 py-3 rounded-2xl bg-white border border-gray-100 text-gray-600 text-sm hover:border-purple-200 hover:bg-purple-50 transition-all text-left">
-                Vérifier un domaine
-              </button>
-              <button onClick={() => setInput("Conseille-moi sur la meilleure extension pour un SaaS")} className="px-4 py-3 rounded-2xl bg-white border border-gray-100 text-gray-600 text-sm hover:border-purple-200 hover:bg-purple-50 transition-all text-left">
-                Conseils extension
-              </button>
-            </div>
+          <div className="flex flex-col items-start justify-start p-4 border border-dashed border-white/5 text-gray-700 text-[10px] gap-2">
+            <p className="font-black underline decoration-oracle-red/20 uppercase tracking-[0.2em] text-oracle-red">SYSTEM INITIALIZED...</p>
+            <p>[OK] Memory bank synchronized.</p>
+            <p>[OK] Neural pathways active.</p>
+            <p>[SYSTEM] Awaiting voice command input...</p>
           </div>
         )}
 
@@ -110,22 +135,26 @@ export default function AIAssistant() {
           {history.map((msg, idx) => (
             <motion.div
               key={idx}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
+              initial={{ opacity: 0, x: -5 }}
+              animate={{ opacity: 1, x: 0 }}
+              className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
             >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                msg.role === 'user' ? 'bg-gray-900 text-white' : 'bg-purple-100 text-purple-600'
-              }`}>
-                {msg.role === 'user' ? <User size={20} /> : <Bot size={20} />}
+              <div className="flex items-center gap-3 text-[8px] uppercase font-black tracking-[0.3em] opacity-30">
+                {msg.role === 'user' ? (
+                  <><span>Authorized_User</span> <div className="w-1 h-1 bg-white rounded-full" /></>
+                ) : (
+                  <><div className="w-1 h-1 bg-oracle-red rounded-full" /> <span>Protocol_Sovereign</span></>
+                )}
               </div>
-              <div className={`max-w-[80%] rounded-2xl px-5 py-4 ${
+              <div className={`max-w-[85%] px-3 py-2 leading-relaxed text-[13px] ${
                 msg.role === 'user' 
-                  ? 'bg-blue-600 text-white rounded-tr-none shadow-lg shadow-blue-100' 
-                  : 'bg-gray-50 text-gray-800 rounded-tl-none border border-gray-100'
+                  ? 'text-gray-400 border-r border-white/10 pr-4 italic text-right' 
+                  : 'text-white border-l border-oracle-red/40 pl-4'
               }`}>
-                <div className="markdown-body">
-                  <Markdown>{msg.parts[0].text}</Markdown>
+                <div className="markdown-body prose prose-invert prose-xs max-w-none">
+                  <Markdown>{msg.role === 'user' 
+                    ? (msg.parts?.[0]?.text || (msg as any).content) 
+                    : (msg.parts?.[0]?.text || (msg as any).content)}</Markdown>
                 </div>
               </div>
             </motion.div>
@@ -133,40 +162,34 @@ export default function AIAssistant() {
         </AnimatePresence>
 
         {loading && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-4">
-            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center">
-              <Bot size={20} />
-            </div>
-            <div className="bg-gray-50 px-5 py-4 rounded-2xl rounded-tl-none border border-gray-100 flex items-center gap-3">
-              <Loader2 className="animate-spin text-purple-500" size={18} />
-              <span className="text-sm text-gray-500 font-medium">L'IA réfléchit...</span>
-            </div>
-          </motion.div>
+          <div className="flex items-center gap-3 text-oracle-red animate-pulse">
+            <span className="text-[10px] font-black">▶</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.4em]">Analyzing neural patterns...</span>
+          </div>
         )}
       </div>
 
-      {/* Input Area */}
-      <div className="p-8 border-t border-gray-100 bg-gray-50/50">
-        <form onSubmit={handleSend} className="relative">
+      {/* Input */}
+      <div className="p-4 border-t border-gray-900 bg-black relative z-20">
+        <form onSubmit={handleSend} className="flex gap-4 items-center">
+          <div className="text-oracle-red flex items-center text-xs font-black opacity-40">$</div>
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
-            placeholder="Écrivez votre message ici..."
-            className="w-full pl-6 pr-16 py-5 rounded-2xl bg-white border border-gray-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all shadow-sm shadow-gray-100 disabled:bg-gray-50 disabled:cursor-not-allowed"
+            placeholder="Command input..."
+            className="flex-1 bg-transparent border-none text-white text-[13px] outline-none placeholder:text-gray-900 font-mono focus:ring-0"
+            autoFocus
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="absolute right-3 top-3 w-12 h-12 rounded-xl bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 transition-all disabled:opacity-50 disabled:hover:bg-purple-600 shadow-md shadow-purple-100"
+            className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-700 hover:text-oracle-red transition-all disabled:opacity-20"
           >
-            <Send size={20} />
+            [EXECUTE]
           </button>
         </form>
-        <p className="text-center text-[10px] text-gray-400 mt-4 uppercase tracking-widest font-semibold">
-          Propulsé par Gemini 3 Flash Preview & Paymenter API
-        </p>
       </div>
     </div>
   );

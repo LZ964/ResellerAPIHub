@@ -78,85 +78,128 @@ export default function Layout({ user }: LayoutProps) {
   };
 
   const navItems = [
-    { name: 'Tableau de bord', path: '/', icon: LayoutDashboard },
-    { name: 'Domaines & DNS', path: '/domains', icon: Globe },
-    { name: 'Certificats SSL', path: '/ssl', icon: Lock },
-    { name: 'Comptes Emails pro', path: '/emails', icon: Mail },
-    { name: 'Idées de Marques IA', path: '/brainstorm', icon: Sparkles },
-    { name: 'Agent IA assigné', path: '/ai-assistant', icon: MessageSquare },
-    { name: 'Profil', path: '/profile', icon: Building },
+    { name: 'Aperçu Global', path: '/', icon: LayoutDashboard },
+    { 
+      name: 'Actifs & IA', 
+      items: [
+        { name: 'Domaines & DNS', path: '/domains', icon: Globe },
+        { name: 'Idées de Marques IA', path: '/brainstorm', icon: Sparkles },
+      ]
+    },
+    { 
+      name: 'Services API', 
+      items: [
+        { name: 'Certificats SSL', path: '/ssl', icon: Lock },
+        { name: 'Messagerie Pro', path: '/emails', icon: Mail },
+      ]
+    },
+    { 
+      name: 'Support & Aide', 
+      items: [
+        { name: 'Agent IA Souverain', path: '/ai-assistant', icon: MessageSquare },
+      ]
+    },
+    { 
+      name: 'Compte & Billing', 
+      items: [
+        { name: 'Profil Légal', path: '/profile', icon: Building },
+        { name: 'Clefs d\'accès API', path: '/profile#keys', icon: Terminal },
+      ]
+    },
   ];
 
   // Map route path to human-readable breadcrumbs
   const getBreadcrumbs = () => {
     const path = location.pathname;
-    const base = "Console ResellerHub";
-    if (path === '/') return [base, "Aperçu"];
-    if (path === '/domains') return [base, "Infrastructures DNS"];
-    if (path === '/ssl') return [base, "Certificats SSL"];
-    if (path === '/emails') return [base, "Messagerie Professionnelle"];
-    if (path === '/brainstorm') return [base, "Générateur AI"];
-    if (path === '/ai-assistant') return [base, "Agent IA"];
-    if (path === '/profile') return [base, "Paramètres Profil"];
-    return [base, "Console"];
+    const base = { name: "Console ResellerHub", path: "/" };
+    
+    if (path === '/') return [base, { name: "Tableau de Bord", path: "/" }];
+    if (path === '/domains') return [base, { name: "Domaines & DNS", path: "/domains" }];
+    if (path === '/ssl') return [base, { name: "Certificats SSL", path: "/ssl" }];
+    if (path === '/emails') return [base, { name: "Messagerie", path: "/emails" }];
+    if (path === '/brainstorm') return [base, { name: "Branding IA", path: "/brainstorm" }];
+    if (path === '/ai-assistant') return [base, { name: "Support IA", path: "/ai-assistant" }];
+    if (path === '/profile') return [base, { name: "Paramètres Profil", path: "/profile" }];
+    return [base, { name: "Navigation", path: "#" }];
   };
 
   const breadcrumbs = getBreadcrumbs();
   const isProfileComplete = profile.addressStreet && profile.addressCity && profile.legalRepresentativeName;
 
   return (
-    <div className="flex h-screen bg-[#F4F6F9] font-sans text-gray-900 overflow-hidden">
-      {/* Sidebar - Inspired by OVH dark deep blue aesthetic */}
-      <aside className="w-64 bg-[#0F213A] text-gray-300 flex flex-col shrink-0 border-r border-[#1B2F4A]">
+    <div className="flex h-screen bg-oracle-bg font-sans text-[#212121] overflow-hidden">
+      {/* Sidebar - Oracle Cloud Professional Dark Aesthetic */}
+      <aside className="w-64 bg-oracle-sidebar text-gray-300 flex flex-col shrink-0 border-r border-[#313131]">
         {/* Brand Header */}
-        <div className="p-6 bg-[#0B1A2F] border-b border-[#1A2E47] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-blue-600 rounded-lg text-white font-black shadow-inner shadow-blue-400">
-              <TrendingUp className="w-5 h-5" />
+        <div className="p-6 bg-black border-b border-[#313131] flex items-center justify-between">
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+            <div className="p-1.5 bg-oracle-red rounded text-white font-black shadow-lg shadow-black/50">
+              <TrendingUp className="w-5 h-5 text-green-300" />
             </div>
             <div>
-              <span className="font-bold text-base text-white tracking-tight uppercase">ResellerHub</span>
-              <span className="block text-[9px] uppercase tracking-wider font-mono text-blue-400 font-semibold">Global API Console</span>
+              <span className="font-bold text-base text-white tracking-tight uppercase">Sovereign HUB</span>
+              <span className="block text-[8px] uppercase tracking-widest font-mono text-gray-500 font-black">Oracle Protocol v2.4</span>
             </div>
           </div>
         </div>
 
         {/* Sidebar Nav */}
-        <nav className="flex-1 py-6 px-3 space-y-1.5 overflow-y-auto">
-          <div className="px-3 mb-2 text-[10px] uppercase font-bold text-gray-500 tracking-widest">
-            Services & Reventes
-          </div>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) => cn(
-                "flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-all duration-150 text-xs font-semibold uppercase tracking-wider",
-                isActive 
-                  ? "bg-[#1E3A5F] text-white border-l-4 border-blue-500 pl-2.5" 
-                  : "text-gray-400 hover:bg-[#162A43] hover:text-white"
-              )}
-            >
-              <item.icon className={cn("w-4 h-4 text-gray-400 group-hover:text-white")} />
-              <span>{item.name}</span>
-            </NavLink>
+        <nav className="flex-1 py-6 px-3 space-y-6 overflow-y-auto">
+          {navItems.map((group) => (
+            <div key={group.name} className="space-y-1">
+              <div className="px-3 mb-2 text-[9px] uppercase font-black text-gray-600 tracking-[0.2em] flex items-center justify-between">
+                {group.name}
+                <div className="w-1 h-1 bg-oracle-red rounded-full" />
+              </div>
+              {group.items ? (
+                group.items.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) => cn(
+                      "flex items-center gap-3 px-3.5 py-2.5 rounded transition-all duration-150 text-[11px] font-bold uppercase tracking-wider group",
+                      isActive 
+                        ? "bg-white/5 text-white border-l-4 border-oracle-red pl-2.5" 
+                        : "text-gray-400 hover:bg-white/5 hover:text-white"
+                    )}
+                  >
+                    <item.icon className={cn("w-4 h-4 text-gray-600 group-hover:text-oracle-red transition-colors")} />
+                    <span>{item.name}</span>
+                  </NavLink>
+                ))
+              ) : group.path && group.icon ? (
+                <NavLink
+                  to={group.path}
+                  className={({ isActive }) => cn(
+                    "flex items-center gap-3 px-3.5 py-2.5 rounded transition-all duration-150 text-[11px] font-bold uppercase tracking-wider group",
+                    isActive 
+                      ? "bg-white/5 text-white border-l-4 border-oracle-red pl-2.5" 
+                      : "text-gray-400 hover:bg-white/5 hover:text-white"
+                  )}
+                >
+                  <group.icon className={cn("w-4 h-4 text-gray-600 group-hover:text-oracle-red transition-colors")} />
+                  <span>{group.name}</span>
+                </NavLink>
+              ) : null}
+            </div>
           ))}
         </nav>
 
-        {/* User context card & quick sign-out links */}
-        <div className="p-4 bg-[#0B1A2F] border-t border-[#1B304C]">
+        {/* User context card */}
+        <div className="p-4 bg-black border-t border-[#313131]">
           <div 
             onClick={() => navigate('/profile')}
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-[#14263E] border border-[#1C3352] mb-3 cursor-pointer hover:bg-[#1E3A5F] hover:border-blue-500/30 transition-all group"
+            className="flex items-center gap-2.5 px-3 py-2.5 rounded bg-[#212121] border border-[#313131] mb-3 cursor-pointer hover:bg-[#252525] hover:border-oracle-red/30 transition-all group"
           >
-            <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-inner group-hover:scale-110 transition-transform">
+            <div className="w-8 h-8 rounded bg-oracle-red flex items-center justify-center text-white font-bold text-xs shadow-inner">
               {user.email?.[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-white truncate">{user.displayName || 'Utilisateur'}</p>
-              <span className="inline-block text-[9px] font-mono text-emerald-400 font-bold bg-emerald-950 px-1.5 rounded border border-emerald-900 mt-0.5 uppercase tracking-widest">
-                Authorized Agent
-              </span>
+              <p className="text-[11px] font-bold text-white truncate uppercase tracking-tighter">{user.displayName || 'Authorized Admin'}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Sovereign Gate</span>
+              </div>
             </div>
           </div>
 
@@ -173,54 +216,58 @@ export default function Layout({ user }: LayoutProps) {
       {/* Main Body with Enterprise Top Bar (Oracle style) */}
       <div className="flex-1 flex flex-col overflow-hidden">
         
-        {/* Top Header Row (Dual Blue/Gray Oracle Ribbon) */}
-        <header className="h-14 bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-8 shrink-0 relative z-30">
+        {/* Top Header Row (Oracle White Professional Ribbon) */}
+        <header className="h-14 bg-white border-b border-oracle-border shadow-sm flex items-center justify-between px-8 shrink-0 relative z-30">
           
           {/* Left: Breadcrumbs */}
           <div className="flex items-center gap-3 text-xs font-medium">
             <Menu className="w-4 h-4 text-gray-400 cursor-pointer lg:hidden" />
-            <div className="flex items-center gap-2.5 text-gray-500">
+            <div className="flex items-center gap-2 text-gray-400">
               {breadcrumbs.map((crumb, idx) => (
-                <div key={crumb} className="flex items-center gap-2.5">
-                  {idx > 0 && <span className="text-gray-300 font-mono">/</span>}
-                  <span className={idx === breadcrumbs.length - 1 ? "text-gray-900 font-bold" : "font-semibold hover:text-gray-700 cursor-pointer"}>
-                    {crumb}
+                <div key={crumb.name} className="flex items-center gap-2">
+                  {idx > 0 && <span className="opacity-30">/</span>}
+                  <span 
+                    onClick={() => navigate(crumb.path)}
+                    className={cn(
+                      "transition-colors cursor-pointer px-1 py-0.5 rounded",
+                      idx === breadcrumbs.length - 1 
+                        ? "text-oracle-red font-black" 
+                        : "font-bold hover:text-gray-900 hover:bg-gray-50"
+                    )}
+                  >
+                    {crumb.name}
                   </span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Right: Functional Profile dropdown + Canadian Validation Status */}
           <div className="flex items-center gap-6">
             
-            {/* Terminal Trigger Button */}
             <button 
-              className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all cursor-pointer border border-transparent hover:border-blue-100 flex items-center gap-2 group"
+              className="px-3 py-1.5 text-gray-500 hover:text-oracle-red transition-all cursor-pointer border border-transparent hover:border-oracle-border rounded flex items-center gap-2 group"
               title="Terminal api-control"
               onClick={() => setTerminalOpen(!terminalOpen)}
             >
-              <Terminal size={18} className="group-hover:scale-110 transition-transform" />
-              <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline text-gray-400 group-hover:text-blue-600">Terminal CLI</span>
+              <Terminal size={14} className="group-hover:scale-110 transition-transform" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Admin CLI</span>
             </button>
 
-            {/* Global Shield Indicator */}
-            <div className="hidden md:flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-100 text-blue-700 rounded-lg text-[10px] font-bold uppercase tracking-widest">
-              <ShieldCheck className="w-4 h-4 text-blue-500" />
-              Secure Hub Core
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-gray-50 border border-oracle-border text-gray-600 rounded text-[9px] font-black uppercase tracking-[0.2em]">
+              <ShieldCheck className="w-3.5 h-3.5 text-oracle-red" />
+              Sovereign Instance
             </div>
 
-            {/* Profile Menu Trigger */}
             <div className="relative">
               <button 
                 onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex items-center gap-2 px-3.5 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-md transition-all text-xs font-semibold text-gray-700 cursor-pointer"
+                className="flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-gray-50 border border-oracle-border rounded transition-all text-[11px] font-black text-gray-700 cursor-pointer uppercase tracking-tighter"
               >
-                <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 font-bold flex items-center justify-center text-[10px]">
-                  {profile.legalRepresentativeName?.[0]?.toUpperCase() || 'C'}
+                <div className="w-4 h-4 bg-oracle-red text-white font-bold flex items-center justify-center text-[8px] rounded-sm">
+                  {profile.legalRepresentativeName?.[0]?.toUpperCase() || 'A'}
                 </div>
-                <span>{profile.legalRepresentativeName || user.email}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                <span>{profile.legalRepresentativeName || user.email?.split('@')[0]}</span>
+                <ChevronDown className="w-3 h-3 text-gray-400" />
               </button>
 
               {/* Functional Dropdown Menu */}
@@ -278,10 +325,29 @@ export default function Layout({ user }: LayoutProps) {
         </header>
 
         {/* Content Viewport */}
-        <main className="flex-1 overflow-auto bg-[#F4F6F9]">
-          <div className="max-w-7xl mx-auto p-8 h-full">
+        <main className="flex-1 overflow-auto bg-oracle-bg flex flex-col">
+          <div className="flex-1 max-w-7xl mx-auto p-8 h-full w-full">
             <Outlet />
           </div>
+          
+          {/* Footer - Professional Oracle Style */}
+          <footer className="px-8 py-3 bg-white border-t border-oracle-border flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-3.5 h-3.5 bg-oracle-red rounded-sm flex items-center justify-center">
+                <TrendingUp size={9} className="text-white" />
+              </div>
+              <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                © 2026 Sovereign Reseller HUB Protocol. Proprietary System.
+              </p>
+            </div>
+            <div className="flex items-center gap-4 text-[8px] font-black text-gray-400 uppercase tracking-tighter">
+              <span className="hover:text-oracle-red cursor-pointer">SLA Core: Verified</span>
+              <span className="w-1 h-1 bg-gray-200 rounded-full" />
+              <span className="hover:text-oracle-red cursor-pointer">Compliance 2.4</span>
+              <span className="w-1 h-1 bg-gray-200 rounded-full" />
+              <span className="hover:text-oracle-red cursor-pointer">Global Access IP</span>
+            </div>
+          </footer>
         </main>
       </div>
 

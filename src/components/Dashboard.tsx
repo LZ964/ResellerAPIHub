@@ -102,13 +102,13 @@ export default function Dashboard() {
           <p className="text-gray-500 mt-1">Résumé en temps réel de votre activité de revente souveraine</p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm cursor-pointer">
-            <CreditCard size={16} />
-            Facturation
+          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-oracle-border rounded text-[11px] font-black uppercase tracking-widest hover:bg-gray-50 transition-colors shadow-sm cursor-pointer">
+            <CreditCard size={14} />
+            Solde & Factures
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm cursor-pointer">
-            <ExternalLink size={16} />
-            Paymenter Panel
+          <button className="flex items-center gap-2 px-4 py-2 bg-oracle-red text-white rounded text-[11px] font-black uppercase tracking-widest hover:bg-oracle-red-dark transition-colors shadow-sm cursor-pointer border border-oracle-red-dark">
+            <ExternalLink size={14} />
+            Instance Core
           </button>
         </div>
       </div>
@@ -204,16 +204,35 @@ export default function Dashboard() {
 
         {/* Quick Actions */}
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-8 rounded-2xl text-white shadow-lg shadow-blue-200 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform">
+          <div className="bg-[#111] p-8 rounded-2xl text-white shadow-xl shadow-black/20 relative overflow-hidden group border border-[#222]">
+            <div className="absolute top-0 right-0 p-4 opacity-5 transform translate-x-4 -translate-y-4 group-hover:scale-110 transition-transform">
               <TrendingUp size={120} />
             </div>
-            <h3 className="text-xl font-bold tracking-tight mb-2 relative z-10">Module WHMCS / Paymenter</h3>
-            <p className="text-blue-100 text-sm mb-6 relative z-10">
-              Téléchargez et configurez nos extensions certifiées pour automatiser vos reventes et pérenniser votre activité.
+            <h3 className="text-xl font-black tracking-tighter mb-2 relative z-10 uppercase italic">Connect <span className="text-oracle-red">Gateway</span></h3>
+            <p className="text-gray-400 text-xs mb-6 relative z-10 leading-relaxed">
+              Téléchargez nos modules certifiés pour intégrer le protocole ResellerHUB directement dans vos environnements WHMCS.
             </p>
-            <button className="bg-white text-blue-600 px-6 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-gray-50 transition-colors relative z-10 cursor-pointer">
-              Télécharger
+            <button 
+              onClick={async () => {
+                const token = await auth.currentUser?.getIdToken();
+                const res = await fetch('/api/whmcs/module', {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                  const blob = await res.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'resellerhub_registrar.php';
+                  a.click();
+                  toast.success("Module WHMCS v1.0 prêt.");
+                } else {
+                  toast.error("Erreur de téléchargement.");
+                }
+              }}
+              className="bg-oracle-red text-white px-6 py-2.5 rounded text-[11px] font-black uppercase tracking-widest shadow-md hover:bg-oracle-red-dark transition-all relative z-10 cursor-pointer border border-white/10"
+            >
+              Télécharger Module
             </button>
           </div>
 
