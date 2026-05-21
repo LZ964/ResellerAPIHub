@@ -1264,9 +1264,9 @@ function resellerhub_RegisterDomain($params) {
     res.status(status).json({ error: msg });
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Bootstrap] Binding to 0.0.0.0:${PORT}...`);
-    console.log(`[Status] Server successfully running at http://0.0.0.0:${PORT}`);
+  app.listen(PORT, () => {
+    console.log(`[Bootstrap] Binding to port ${PORT}...`);
+    console.log(`[Status] Server successfully running on port ${PORT}`);
     console.log(`[Status] NODE_ENV: ${process.env.NODE_ENV}`);
     console.log(`[Status] Dist Path: ${isProd ? path.resolve(_dirname) : 'N/A'}`);
   });

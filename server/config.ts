@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import * as admin from 'firebase-admin';
+import admin from 'firebase-admin';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
@@ -17,7 +17,7 @@ export function getFirebase() {
       const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
       if (fs.existsSync(firebaseConfigPath)) {
         const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf8'));
-        if (!admin.apps.length) {
+        if (!admin.apps || !admin.apps.length) {
           firebaseAdminApp = admin.initializeApp({
             projectId: firebaseConfig.projectId,
           });
