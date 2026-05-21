@@ -1,6 +1,8 @@
 import path from 'path';
 import fs from 'fs';
 import admin from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
@@ -14,21 +16,22 @@ let authInstance: admin.auth.Auth | null = null;
 export function getFirebase() {
   if (!firebaseAdminApp) {
     try {
-      const firebaseConfigPath = path.join(process.cwd(), 'firebase-applet-config.json');
-      if (fs.existsSync(firebaseConfigPath)) {
-        const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, 'utf8'));
+      const projectId = process.env.FIREBASE_PROJECT_ID;
+      const databaseId = process.env.FIREBASE_DATABASE_ID;
+      
+      if (projectId) {
         if (!admin.apps || !admin.apps.length) {
           firebaseAdminApp = admin.initializeApp({
-            projectId: firebaseConfig.projectId,
+            projectId: projectId,
           });
           console.log('[Firebase] Admin initialized successfully.');
         } else {
           firebaseAdminApp = admin.app();
         }
-        dbInstance = admin.firestore();
-        authInstance = admin.auth();
+        dbInstance = getFirestore(firebaseAdminApp, databaseId);
+        authInstance = getAuth(firebaseAdminApp);
       } else {
-        console.warn('[Firebase] Warning: firebase-applet-config.json is missing. Local offline modes will be active.');
+        console.warn('[Firebase] Warning: FIREBASE_PROJECT_ID env var is missing. Local offline modes will be active.');
       }
     } catch (err) {
       console.error('[Firebase] Failed to initialize Firebase:', err);

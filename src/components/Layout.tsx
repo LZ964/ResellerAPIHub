@@ -214,7 +214,7 @@ export default function Layout({ user }: LayoutProps) {
       ]
     },
     { 
-      name: 'Compte & Billing', 
+      name: 'Compte & Facturation', 
       items: [
         { name: 'Profil Légal', path: '/profile', icon: Building },
         { name: 'Clefs d\'accès API', path: '/profile#keys', icon: Terminal },
