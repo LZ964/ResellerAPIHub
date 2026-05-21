@@ -13,11 +13,13 @@ import {
   Code2,
   FileText,
   AlertTriangle,
-  Zap
+  Zap,
+  Server
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import ApiExplorer from './ApiExplorer';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -90,6 +92,12 @@ export default function Documentation() {
           </div>
         </div>
       )
+    },
+    {
+      id: 'api-explorer',
+      title: 'Swagger API Test',
+      icon: Server,
+      content: <ApiExplorer />
     },
     {
       id: 'api-hub',

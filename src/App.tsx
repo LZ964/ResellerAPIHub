@@ -33,10 +33,17 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = onAuthStateChanged(auth, (user) => {
+        setUser(user);
+        setLoading(false);
+      });
+    } catch (err) {
+      console.warn("Auth initialization failed. App works in preview mode with no backend. ", err);
+      // Simulate loaded with no user
       setLoading(false);
-    });
+    }
     return () => unsubscribe();
   }, []);
 
