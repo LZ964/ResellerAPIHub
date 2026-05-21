@@ -147,7 +147,15 @@ const limiter = rateLimit({
   max: 120, // limit each IP to 120 requests
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' }
+  message: { error: 'Trop de requêtes, veuillez réessayer plus tard.' }
+});
+
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // stricter limit (20 req / 15m)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de requêtes sensibles. Réessayez plus tard.' }
 });
 
 async function startServer() {
@@ -285,6 +293,36 @@ async function startServer() {
       res.status(401).json({ error: 'Session token invalid or expired' });
     }
   };
+
+  // --- Role & Permissions Middlewares ---
+  const requireRole = (allowedRoles: string[]) => {
+    return (req: Request, res: Response, next: NextFunction) => {
+      // API keys and full admins can bypass
+      if ((req as any).user?.role === 'api') return next();
+      
+      const userLevel = (req as any).user?.role || 'user';
+      if (!allowedRoles.includes(userLevel) && userLevel !== 'admin') {
+        return res.status(403).json({ error: 'Accès refusé. Privilèges insuffisants pour cette action (RBAC).' });
+      }
+      next();
+    };
+  };
+
+  // --- Sandbox (Dry-run) Middleware ---
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.headers['x-sandbox-mode'] === 'true' && req.path.startsWith('/api')) {
+      const isDestructive = ['POST', 'PUT', 'DELETE'].includes(req.method);
+      if (isDestructive) {
+        return res.status(200).json({
+          success: true,
+          sandbox: true,
+          message: `Requête simulée avec succès. Mode Sandbox actif (Dry-run). L'action ${req.method} vers ${req.path} n'a eu aucun impact sur la base de données.`,
+          mode: 'SANDBOX'
+        });
+      }
+    }
+    next();
+  });
 
   // Log connections
   app.use(async (req, res, next) => {
@@ -430,7 +468,7 @@ async function startServer() {
   });
 
   // Auth: Local signup
-  app.post('/api/auth/local-signup', async (req: Request, res: Response, next: NextFunction) => {
+  app.post('/api/auth/local-signup', strictLimiter, async (req: Request, res: Response, next: NextFunction) => {
     if (!auth || !db) {
       return res.json({ success: true, uid: 'offline_user_1', simulated: true });
     }
@@ -486,7 +524,7 @@ async function startServer() {
   });
 
   // Proxy: Domain register
-  app.post('/api/paymenter/domains/register', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
+  app.post('/api/paymenter/domains/register', strictLimiter, authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const uid = (req as any).user.uid;
       const { domain, price } = productOrderSchema.parse(req.body);
@@ -514,7 +552,7 @@ async function startServer() {
   });
 
   // Request: SSL buy
-  app.post('/api/paymenter/ssl/order', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
+  app.post('/api/paymenter/ssl/order', strictLimiter, authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const uid = (req as any).user.uid;
       const { planId, domain } = req.body;
@@ -789,7 +827,7 @@ async function startServer() {
   });
 
   // Make Deposit
-  app.post('/api/billing/deposit', authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
+  app.post('/api/billing/deposit', strictLimiter, authenticateUser, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const uid = (req as any).user.uid;
       const { amount, method } = depositSchema.parse(req.body);
