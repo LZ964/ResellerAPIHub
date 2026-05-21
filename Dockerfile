@@ -24,7 +24,6 @@ RUN npm install --omit=dev
 
 # Copie du dossier dist (contenant l'app compilée et le serveur)
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/firebase-applet-config.json ./
 
 # Variables d'environnement par défaut
 ENV NODE_ENV=production
