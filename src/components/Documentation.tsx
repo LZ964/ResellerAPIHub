@@ -39,7 +39,7 @@ export default function Documentation() {
     {
       id: 'getting-started',
       title: 'Guide d\'activation',
-      icon: zapIcon,
+      icon: Zap,
       content: (
         <div className="space-y-8">
           <div className="p-6 bg-oracle-red/10 border-l-4 border-oracle-red rounded-r-xl">
@@ -421,8 +421,4 @@ function CommandItem({ cmd, desc, example }: { cmd: string, desc: string, exampl
       )}
     </div>
   );
-}
-
-function zapIcon() {
-  return <Zap size={16} />;
 }
